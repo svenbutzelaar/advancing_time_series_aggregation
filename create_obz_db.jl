@@ -9,7 +9,7 @@ using Random: Random
 include("cluster/cluster_partitions.jl")
 
 user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
-database_name = "obz_with_investment_no_temporal_reduction.db"
+database_name = "obz_test.db"
 
 #parameters
 num_rep_periods = 3
@@ -349,7 +349,7 @@ DuckDB.query(
     ",
 )
 
-# cluster_partitions!(connection, 24)
+cluster_partitions!(connection, 3000, true)
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(
