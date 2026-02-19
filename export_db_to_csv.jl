@@ -2,7 +2,7 @@ using Pkg
 using DuckDB: DBInterface, DuckDB
 using DataFrames: DataFrame
 
-database_name = "obz_with_investment_no_temporal_reduction.db"
+database_name = "obz_test.db"
 
 # remove .db for output directory name
 output_dir = replace(database_name, ".db" => "")
