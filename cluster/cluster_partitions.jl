@@ -9,7 +9,7 @@ include("cluster_ward.jl")  # uses hierarchical_time_clustering_ward
     cluster_partitions!(
         conn::DuckDB.DB,
         num_clusters::Int,
-        dependant_per_loacation::Bool;
+        dependant_per_location::Bool;
     )
 
 Runs Ward clustering on profile tables stored in DuckDB.
@@ -17,14 +17,23 @@ Runs Ward clustering on profile tables stored in DuckDB.
 function cluster_partitions!(
     conn,
     num_clusters::Int,
-    dependant_per_loacation::Bool;
+    dependant_per_location::Bool;
 )
     results = DataFrame(
         asset = String[],
         rep_period = Int64[],
         specification = String[],
         partition = String[],
+        values = String[],
         year = Int64[],
+        location = String[],
+    )
+
+    stats = DataFrame(
+        name = String[],
+        rep_period = Int64[],
+        year = Int64[],
+        errors = Vector{Float64}[],
     )
 
     # === GENERATE PARTITIONS ===
@@ -48,10 +57,10 @@ function cluster_partitions!(
         """
     ))
 
-    if dependant_per_loacation
-        cluster_partitions_per_location!(df, results, num_clusters)
+    if dependant_per_location
+        cluster_partitions_per_location!(df, results, stats, num_clusters)
     else
-        cluster_partitions_per_profile!(df, results, num_clusters)
+        cluster_partitions_per_profile!(df, results, stats, num_clusters)
     end
 
     # === UPDATE ASSET PARTITIONS ===
@@ -101,16 +110,30 @@ end
 function cluster_partitions_per_profile!(
         df::DataFrame, 
         results::DataFrame, 
-        num_clusters::Int,
+        stats::DataFrame, 
+        num_clusters::Int;
     )
     
     for g in groupby(df, [:profile_name, :rep_period, :year])
         profile = first(g.profile_name)
+        location = first(g.location)
         rep_period = first(g.rep_period)
         year = first(g.year)
         values = reshape(Vector{Float64}(g.value), :, 1)
 
-        clusters = hierarchical_time_clustering_ward(values, num_clusters)
+        partitions, partition_values, errors = hierarchical_time_clustering_ward(values, num_clusters)
+
+        partition_values_flat = first.(partition_values) #since we calculate per profile, partition_values is of size N X 1
+        
+        push!(
+            stats, 
+            (
+                name = profile,
+                rep_period = rep_period,
+                year = year,
+                errors = errors,
+            ),
+        )
 
         push!(
             results,
@@ -118,8 +141,10 @@ function cluster_partitions_per_profile!(
                 asset = profile,
                 rep_period = rep_period,
                 specification = "explicit",
-                partition = join(clusters, ";"),
+                partition = join(partitions, ";"),
+                values = join(partition_values_flat, ";"),
                 year = year,
+                location = location,
             ),
         )
     end
@@ -130,13 +155,15 @@ end
 function cluster_partitions_per_location!(
     df::DataFrame, 
     results::DataFrame, 
-    num_clusters::Int,
+    stats::DataFrame, 
+    num_clusters::Int;
 )
 
     for group_per_location in groupby(df, [:location, :rep_period, :year])
 
         rep_period = first(group_per_location.rep_period)
         year = first(group_per_location.year)
+        location = first(group_per_location.location)
 
         # Ensure correct order
         sort!(group_per_location, [:profile_name, :timestep])
@@ -160,20 +187,32 @@ function cluster_partitions_per_location!(
 
         end
 
-        clusters = hierarchical_time_clustering_ward(values, num_clusters)
+        partitions, partition_values, errors = hierarchical_time_clustering_ward(values, num_clusters)
 
-        for profile_name in profiles
+        push!(
+            stats, 
+            (
+                name = first(group_per_location[!, :location]),
+                rep_period = rep_period,
+                year = year,
+                errors = errors,
+            ),
+        )
+
+        for (j, profile_name) in enumerate(profiles)
+            partition_values_per_profile = getindex.(partition_values, j)
             push!(
                 results,
                 (
                     asset = profile_name,
                     rep_period = rep_period,
                     specification = "explicit",
-                    partition = join(clusters, ";"),
+                    partition = join(partitions, ";"),
+                    values = join(partition_values_per_profile, ";"),
                     year = year,
+                    location = location,
                 ),
             )
         end
     end
-
 end

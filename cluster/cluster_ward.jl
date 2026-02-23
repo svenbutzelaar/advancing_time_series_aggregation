@@ -61,8 +61,14 @@ end
 Base.isless(a::HeapEntry, b::HeapEntry) = a.ward_criterion < b.ward_criterion
 
 # Internal clustering function
-function hierarchical_time_clustering_ward(values::Matrix{Float64}, n_prime::Int)
+function hierarchical_time_clustering_ward(
+        values::Matrix{Float64}, 
+        n_prime::Int;
+    )
     n, d = size(values)
+
+    errors_per_merge = Float64[]
+    result_values = Vector{Vector{Float64}}()
 
     # Create initial clusters
     clusters = [LinkedListNode(i, i, view(values, i, :)) for i in 1:n]
@@ -102,6 +108,7 @@ function hierarchical_time_clustering_ward(values::Matrix{Float64}, n_prime::Int
             continue
         end
 
+        push!(errors_per_merge, entry.ward_criterion)
         merge_nodes!(entry.c1, entry.c2)
         merges += 1
 
@@ -120,7 +127,8 @@ function hierarchical_time_clustering_ward(values::Matrix{Float64}, n_prime::Int
 
     for c in active_clusters
         push!(result, c.count)
+        push!(result_values, c.centroid)
     end
 
-    return result
+    return result, result_values, errors_per_merge
 end
