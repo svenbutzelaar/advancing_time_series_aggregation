@@ -66,6 +66,28 @@ df = DataFrame(DBInterface.execute(
     """
 ))
 
+df_old = DataFrame(DBInterface.execute(
+    connection,
+    """
+    SELECT 
+        profile_name,
+        rep_period,
+        timestep,
+        year,
+        value
+    FROM profiles_rep_periods_old
+    WHERE 
+            value IS NOT NULL
+        AND rep_period = $rep_period
+        AND year = $year
+        AND profile_name IN ('NL_E_Demand',
+                             'NL_Solar',
+                             'NL_Wind_Offshore',
+                             'NL_Wind_Onshore')
+    ORDER BY profile_name, timestep
+    """
+))
+
 # ----------------------------
 # Load partitions
 # ----------------------------
@@ -102,7 +124,7 @@ partition_dict = Dict(
 # ----------------------------
 # Plotting function
 # ----------------------------
-function plot_profile_with_partitions(df, profile_name, clusters; hours=72)
+function plot_profile_with_partitions(df, df_old, profile_name, clusters; hours=72)
 
     df_profile = filter(row -> row.profile_name == profile_name, df)
     sort!(df_profile, :timestep)
@@ -112,11 +134,18 @@ function plot_profile_with_partitions(df, profile_name, clusters; hours=72)
     values = df_profile.value
     timesteps = df_profile.timestep
 
+    # --- Old values (blue line) ---
+    df_profile_old = filter(row -> row.profile_name == profile_name, df_old)
+    sort!(df_profile_old, :timestep)
+    df_profile_old = df_profile_old[1:hours, :]
+    values_old = df_profile_old.value
+
     p = plot(
         timesteps,
-        values,
+        values_old,
+        color = :blue,
         linewidth = 2,
-        label = "Value",
+        label = "Old values",
         title = profile_name,
         xlabel = "Hour",
         ylabel = "Value",
@@ -135,7 +164,7 @@ function plot_profile_with_partitions(df, profile_name, clusters; hours=72)
             fill(mean_val, cluster_end - idx + 1),
             color = :red,
             linewidth = 4,
-            label = false
+            label = "Adjusted values"
         )
 
         # ---- Add red dot if partition size == 1 ----
@@ -157,57 +186,54 @@ function plot_profile_with_partitions(df, profile_name, clusters; hours=72)
     return p
 end
 
-function plot_profile_with_partitions_one_line(df, profile_name, clusters; hours=72)
+function plot_profile_with_partitions_one_line(df, df_old, profile_name, clusters; hours=72)
 
+    # --- Current values (red line) ---
     df_profile = filter(row -> row.profile_name == profile_name, df)
     sort!(df_profile, :timestep)
-
     df_profile = df_profile[1:hours, :]
-
     values = df_profile.value
     timesteps = df_profile.timestep
 
-    # Base plot (no legend)
+    # --- Old values (blue line) ---
+    df_profile_old = filter(row -> row.profile_name == profile_name, df_old)
+    sort!(df_profile_old, :timestep)
+    df_profile_old = df_profile_old[1:hours, :]
+    values_old = df_profile_old.value
+
+    # Base plot: old values as blue line
     p = plot(
         timesteps,
-        values,
+        values_old,
+        color = :blue,
         linewidth = 2,
+        label = "Old values",
         title = profile_name,
         xlabel = "Hour",
-        ylabel = "Value",
-        legend = false
+        ylabel = "Value"
     )
 
     # -------------------------------------------------
-    # Build continuous partition mean vector
+    # Build continuous partition mean vector for new values
     # -------------------------------------------------
-
     partition_mean = similar(values)
 
     idx = 1
     for cluster_size in clusters
-
         cluster_end = min(idx + cluster_size - 1, hours)
-
         mean_val = mean(values[idx:cluster_end])
-
-        # Fill ALL hours in this partition
         partition_mean[idx:cluster_end] .= mean_val
-
         idx += cluster_size
         idx > hours && break
     end
 
-    # -------------------------------------------------
-    # Plot one continuous red line
-    # -------------------------------------------------
-
+    # Plot new partition-adjusted values as red line
     plot!(
         timesteps,
         partition_mean,
         color = :red,
         linewidth = 2,
-        label = false
+        label = "Adjusted values"
     )
 
     return p
@@ -234,7 +260,7 @@ for profile in profiles
         continue
     end
 
-    p = plot_profile_with_partitions(df, profile, clusters; hours=hours)
+    p = plot_profile_with_partitions(df, df_old, profile, clusters; hours=hours)
 
     # Save individual plot
     filename = joinpath(parts_dir, "$(profile)_partitions.png")
@@ -243,7 +269,7 @@ for profile in profiles
 
     push!(individual_plots, p)
 
-    p = plot_profile_with_partitions_one_line(df, profile, clusters; hours=hours)
+    p = plot_profile_with_partitions_one_line(df, df_old, profile, clusters; hours=hours)
 
     # Save individual plot
     filename = joinpath(one_line_dir, "$(profile)_partitions.png")

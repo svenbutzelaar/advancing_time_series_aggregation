@@ -136,7 +136,7 @@ function update_profiles_rep_periods_with_new_values!(
 
         partitions = parse.(Int, split(row.partition, ";"))
         rep_values = parse.(Float64, split(row.values, ";"))
-        mean_values = parse.(Float64, split(row.mean_values, ";"))  # <- NEW (see below)
+        mean_values = parse.(Float64, split(row.mean_values, ";"))
 
         timestep_counter = 1
 
@@ -171,6 +171,17 @@ function update_profiles_rep_periods_with_new_values!(
     tmp_profiles = "tmp_clustered_profiles"
     DuckDB.register_data_frame(conn, expanded_profiles, tmp_profiles)
 
+    # --- Save old values first ---
+    DBInterface.execute(
+        conn,
+        """
+        CREATE TABLE IF NOT EXISTS profiles_rep_periods_old AS
+        SELECT *
+        FROM profiles_rep_periods
+        """
+    )
+
+    # --- Update new values ---
     DBInterface.execute(
         conn,
         """
