@@ -64,10 +64,19 @@ Base.isless(a::HeapEntry, b::HeapEntry) = a.ward_criterion < b.ward_criterion
 function hierarchical_time_clustering_ward(
         values::Matrix{Float64}, 
         n_prime::Int;
+        calc_stats=false,
     )
     n, d = size(values)
+    
+    if calc_stats
+        full_resolution_values_sorted = Vector{Vector{Float64}}()
+        for j in 1:d
+            push!(full_resolution_values_sorted, sort(values[:, j]; rev=true))
+        end
+    end
 
-    errors_per_merge = Float64[]
+    ward_errors = Vector{Vector{Float64}}()
+    ldc_errors_per_merge = Vector{Vector{Float64}}()
     result_values = Vector{Vector{Float64}}()
 
     # Create initial clusters
@@ -77,7 +86,7 @@ function hierarchical_time_clustering_ward(
         clusters[i+1].prev_node = clusters[i]
     end
 
-    # Priority queue for merges using proper binary heap
+    # Priority queue for merges
     heap = MutableBinaryMinHeap{HeapEntry}()
 
     function push_merge(c1::LinkedListNode, c2::LinkedListNode)
@@ -101,15 +110,43 @@ function hierarchical_time_clustering_ward(
             break
         end
 
-        entry = pop!(heap)  # O(log n) operation
+        entry = pop!(heap)
 
-        # Check if clusters are still valid and adjacent
+        # Validate clusters
         if !(entry.c1.active && entry.c2.active && entry.c1.next_node === entry.c2)
             continue
         end
 
-        push!(errors_per_merge, entry.ward_criterion)
+        if calc_stats
+            ldc_error_vec = Float64[]
+            ward_error_vec = Float64[]
+
+            for j in 1:d
+                merged_values = Float64[]
+                    for c in filter(c -> c.active, clusters)
+                        for _ in 1:c.count
+                            push!(merged_values, c.centroid[j])
+                        end
+                    end
+                merged_sorted = sort(merged_values; rev=true)
+
+                # Root Mean Squared Error (RMSE) of LDC error
+                n_total = length(merged_sorted)
+                mse = sum((full_resolution_values_sorted[j] .- merged_sorted).^2) / n_total
+                rmse = sqrt(mse)
+                push!(ldc_error_vec, rmse)
+                
+                # sum Squared errors 
+                push!(ward_error_vec, sum((values[:, j] .- merged_values).^2))
+            end
+
+            push!(ldc_errors_per_merge, ldc_error_vec)
+            push!(ward_errors, ward_error_vec)
+        end
+
+        # Merge nodes
         merge_nodes!(entry.c1, entry.c2)
+
         merges += 1
 
         # Add new merge candidates
@@ -122,13 +159,13 @@ function hierarchical_time_clustering_ward(
     end
 
     # Collect results
-    result = Int[]
+    result_partitions = Int[]
     active_clusters = filter(c -> c.active, clusters)
 
     for c in active_clusters
-        push!(result, c.count)
+        push!(result_partitions, c.count)
         push!(result_values, c.centroid)
     end
 
-    return result, result_values, errors_per_merge
+    return result_partitions, result_values, ward_errors, ldc_errors_per_merge
 end

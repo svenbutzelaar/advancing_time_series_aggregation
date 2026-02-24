@@ -11,9 +11,9 @@ base_db = "obz_partitions_base.db"
 new_db  = "obz_partitions.db"
 
 num_clusters = 200
-dir = "plotting/$(num_clusters)"
+dir = "plotting/csv_data/partitions"
 mkpath(dir)
-partitions_output_file = "$dir/partitions.csv"
+partitions_output_file = "$dir/$(num_clusters).csv"
 
 isfile(new_db) && rm(new_db; force=true)
 cp(base_db, new_db)
@@ -31,10 +31,12 @@ results = DataFrame(
 )
 
 stats = DataFrame(
-    name = String[],
+    asset = String[],
+    location = String[],
     rep_period = Int64[],
     year = Int64[],
     errors = Vector{Float64}[],
+    ldc_errors = Vector{Float64}[],
 )
 
 df = DataFrame(DBInterface.execute(
@@ -56,9 +58,13 @@ df = DataFrame(DBInterface.execute(
         """
     ))
 
-cluster_partitions_per_profile!(df, results, stats, num_clusters)
+cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters; calc_stats=true)
+CSV.write("plotting/csv_data/cummulative_errors_per_location.csv",stats)   
+
+
+cluster_partitions_per_profile!(df, results, stats, num_clusters; calc_stats=true)
+CSV.write("plotting/csv_data/cummulative_errors_per_profile.csv",stats)   
 
 
 # for writing
-CSV.write("plotting/cummulative_errors_per_profile.csv",stats)   
 # CSV.write(partitions_output_file, results)

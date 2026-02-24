@@ -30,10 +30,12 @@ function cluster_partitions!(
     )
 
     stats = DataFrame(
-        name = String[],
+        asset = String[],
+        location = String[],
         rep_period = Int64[],
         year = Int64[],
         errors = Vector{Float64}[],
+        ldc_errors = Vector{Float64}[],
     )
 
     # === GENERATE PARTITIONS ===
@@ -108,37 +110,40 @@ function cluster_partitions!(
 end
 
 function cluster_partitions_per_profile!(
-        df::DataFrame, 
-        results::DataFrame, 
-        stats::DataFrame, 
-        num_clusters::Int;
-    )
+    df::DataFrame, 
+    results::DataFrame, 
+    stats::DataFrame, 
+    num_clusters::Int;
+    calc_stats=false,
+)
     
     for g in groupby(df, [:profile_name, :rep_period, :year])
-        profile = first(g.profile_name)
+        profile_name = first(g.profile_name)
         location = first(g.location)
         rep_period = first(g.rep_period)
         year = first(g.year)
         values = reshape(Vector{Float64}(g.value), :, 1)
 
-        partitions, partition_values, errors = hierarchical_time_clustering_ward(values, num_clusters)
+        partitions, partition_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(values, num_clusters;calc_stats=calc_stats)
 
         partition_values_flat = first.(partition_values) #since we calculate per profile, partition_values is of size N X 1
         
         push!(
             stats, 
             (
-                name = profile,
+                asset = profile_name,
+                location = location,
                 rep_period = rep_period,
                 year = year,
-                errors = errors,
+                errors = [ward_errors[step][1] for step in eachindex(ward_errors)],
+                ldc_errors = [ldc_errors[step][1] for step in eachindex(ldc_errors)],
             ),
         )
 
         push!(
             results,
             (
-                asset = profile,
+                asset = profile_name,
                 rep_period = rep_period,
                 specification = "explicit",
                 partition = join(partitions, ";"),
@@ -157,6 +162,7 @@ function cluster_partitions_per_location!(
     results::DataFrame, 
     stats::DataFrame, 
     num_clusters::Int;
+    calc_stats=false,
 )
 
     for group_per_location in groupby(df, [:location, :rep_period, :year])
@@ -187,18 +193,8 @@ function cluster_partitions_per_location!(
 
         end
 
-        partitions, partition_values, errors = hierarchical_time_clustering_ward(values, num_clusters)
-
-        push!(
-            stats, 
-            (
-                name = first(group_per_location[!, :location]),
-                rep_period = rep_period,
-                year = year,
-                errors = errors,
-            ),
-        )
-
+        partitions, partition_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(values, num_clusters;calc_stats=calc_stats)
+        
         for (j, profile_name) in enumerate(profiles)
             partition_values_per_profile = getindex.(partition_values, j)
             push!(
@@ -211,6 +207,18 @@ function cluster_partitions_per_location!(
                     values = join(partition_values_per_profile, ";"),
                     year = year,
                     location = location,
+                ),
+            )
+
+            push!(
+                stats, 
+                (
+                    asset = profile_name,
+                    location = location,
+                    rep_period = rep_period,
+                    year = year,
+                    errors = [ward_errors[step][j] for step in eachindex(ward_errors)],
+                    ldc_errors = [ldc_errors[step][j] for step in eachindex(ldc_errors)],
                 ),
             )
         end
