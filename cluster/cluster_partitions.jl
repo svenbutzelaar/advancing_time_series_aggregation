@@ -3,7 +3,8 @@ using DataFrames
 using Statistics
 using DuckDB
 
-include("cluster_ward.jl")  # uses hierarchical_time_clustering_ward
+include("cluster_ward.jl")
+include("profile_type.jl")
 
 """
     cluster_partitions!(
@@ -17,7 +18,8 @@ Runs Ward clustering on profile tables stored in DuckDB.
 function cluster_partitions!(
     conn,
     num_clusters::Int,
-    dependant_per_location::Bool;
+    dependant_per_location::Bool,
+    do_extreme_preservation::Bool;
 )
     results = DataFrame(
         asset = String[],
@@ -25,6 +27,7 @@ function cluster_partitions!(
         specification = String[],
         partition = String[],
         values = String[],
+        mean_values = String[],
         year = Int64[],
         location = String[],
     )
@@ -58,15 +61,19 @@ function cluster_partitions!(
         ORDER BY profile_name, rep_period, year, timestep
         """
     ))
-
+    
     if dependant_per_location
-        cluster_partitions_per_location!(df, results, stats, num_clusters)
+        cluster_partitions_per_location!(df, results, stats, num_clusters, do_extreme_preservation=do_extreme_preservation)
     else
-        cluster_partitions_per_profile!(df, results, stats, num_clusters)
+        cluster_partitions_per_profile!(df, results, stats, num_clusters, do_extreme_preservation=do_extreme_preservation)
+    end
+
+    # === UPDATE profiles_rep_periods values ===
+    if do_extreme_preservation
+        update_profiles_rep_periods_with_new_values!(conn, results)
     end
 
     # === UPDATE ASSET PARTITIONS ===
-
     tmp_table = "tmp_cluster_results"
 
     DuckDB.register_data_frame(conn, results, tmp_table)
@@ -106,7 +113,79 @@ function cluster_partitions!(
         """
     )
     DBInterface.execute(conn, "DROP VIEW IF EXISTS $tmp_table")
+end
 
+function update_profiles_rep_periods_with_new_values!(
+    conn, 
+    results;
+)
+
+    expanded_profiles = DataFrame(
+        profile_name = String[],
+        rep_period   = Int[],
+        year         = Int[],
+        timestep     = Int[],
+        value        = Float64[],
+    )
+
+    for row in eachrow(results)
+
+        profile_name = row.asset
+        rep_period   = row.rep_period
+        year         = row.year
+
+        partitions = parse.(Int, split(row.partition, ";"))
+        rep_values = parse.(Float64, split(row.values, ";"))
+        mean_values = parse.(Float64, split(row.mean_values, ";"))  # <- NEW (see below)
+
+        timestep_counter = 1
+
+        for (p, rep_v, mean_v) in zip(partitions, rep_values, mean_values)
+
+            # Only update if representative differs from mean
+            if !isapprox(rep_v, mean_v; atol=1e-10)
+
+                for _ in 1:p
+                    push!(expanded_profiles, (
+                        profile_name,
+                        rep_period,
+                        year,
+                        timestep_counter,
+                        rep_v
+                    ))
+                    timestep_counter += 1
+                end
+
+            else
+                timestep_counter += p
+            end
+        end
+    end
+
+    # If nothing changed → do nothing
+    if nrow(expanded_profiles) == 0
+        println("No extreme-preservation adjustments required.")
+        return
+    end
+
+    tmp_profiles = "tmp_clustered_profiles"
+    DuckDB.register_data_frame(conn, expanded_profiles, tmp_profiles)
+
+    DBInterface.execute(
+        conn,
+        """
+        UPDATE profiles_rep_periods AS p
+        SET value = t.value
+        FROM $tmp_profiles AS t
+        WHERE
+            p.profile_name = t.profile_name
+            AND p.rep_period = t.rep_period
+            AND p.year = t.year
+            AND p.timestep = t.timestep
+        """
+    )
+
+    DBInterface.execute(conn, "DROP VIEW IF EXISTS $tmp_profiles")
 end
 
 function cluster_partitions_per_profile!(
@@ -115,6 +194,7 @@ function cluster_partitions_per_profile!(
     stats::DataFrame, 
     num_clusters::Int;
     calc_stats=false,
+    do_extreme_preservation=true,
 )
     
     for g in groupby(df, [:profile_name, :rep_period, :year])
@@ -124,9 +204,18 @@ function cluster_partitions_per_profile!(
         year = first(g.year)
         values = reshape(Vector{Float64}(g.value), :, 1)
 
-        partitions, partition_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(values, num_clusters;calc_stats=calc_stats)
+        profile_type = getProfileType(profile_name)
+        profile_types = [profile_type]
+        partitions, partition_values, mean_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(
+            values, 
+            num_clusters, 
+            profile_types;
+            calc_stats=calc_stats,
+            do_extreme_preservation=do_extreme_preservation
+        )
 
         partition_values_flat = first.(partition_values) #since we calculate per profile, partition_values is of size N X 1
+        mean_values_flat = first.(mean_values)
         
         push!(
             stats, 
@@ -148,6 +237,7 @@ function cluster_partitions_per_profile!(
                 specification = "explicit",
                 partition = join(partitions, ";"),
                 values = join(partition_values_flat, ";"),
+                mean_values = join(mean_values_flat, ";"),
                 year = year,
                 location = location,
             ),
@@ -163,6 +253,7 @@ function cluster_partitions_per_location!(
     stats::DataFrame, 
     num_clusters::Int;
     calc_stats=false,
+    do_extreme_preservation=true,
 )
 
     for group_per_location in groupby(df, [:location, :rep_period, :year])
@@ -192,11 +283,21 @@ function cluster_partitions_per_location!(
             values[:, j] .= sub.value
 
         end
-
-        partitions, partition_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(values, num_clusters;calc_stats=calc_stats)
+        
+        profile_types = [getProfileType(p) for p in profiles]
+        # @show profile_types
+        # @show location
+        partitions, partition_values, mean_values, ward_errors, ldc_errors = hierarchical_time_clustering_ward(
+            values, 
+            num_clusters, 
+            profile_types;
+            calc_stats=calc_stats,
+            do_extreme_preservation=do_extreme_preservation
+        )
         
         for (j, profile_name) in enumerate(profiles)
             partition_values_per_profile = getindex.(partition_values, j)
+            mean_values_per_profile = getindex.(mean_values, j)
             push!(
                 results,
                 (
@@ -205,6 +306,7 @@ function cluster_partitions_per_location!(
                     specification = "explicit",
                     partition = join(partitions, ";"),
                     values = join(partition_values_per_profile, ";"),
+                    mean_values = join(mean_values_per_profile, ";"),
                     year = year,
                     location = location,
                 ),

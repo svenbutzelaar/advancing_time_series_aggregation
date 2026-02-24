@@ -18,7 +18,7 @@ profiles = [
     "NL_Wind_Onshore"
 ]
 
-hours = 72
+hours = 72 * 2
 rep_period = 1      # change if needed
 year = 2050         # change if needed
 
@@ -216,9 +216,11 @@ end
 # ----------------------------
 # Generate & Save Plots
 # ----------------------------
+parts_dir = "plots/partitions_with_extreme_parts"
+one_line_dir = "plots/partitions_with_extreme_one_line"
 
-mkpath("plots/partitions")
-mkpath("plots/partitions_one_line")
+mkpath(parts_dir)
+mkpath(one_line_dir)
 
 individual_plots = []
 individual_plots_one_line = []
@@ -235,7 +237,7 @@ for profile in profiles
     p = plot_profile_with_partitions(df, profile, clusters; hours=hours)
 
     # Save individual plot
-    filename = joinpath("plots", "partitions", "$(profile)_partitions.png")
+    filename = joinpath(parts_dir, "$(profile)_partitions.png")
     savefig(p, filename)
     println("Saved: ", filename)
 
@@ -244,7 +246,7 @@ for profile in profiles
     p = plot_profile_with_partitions_one_line(df, profile, clusters; hours=hours)
 
     # Save individual plot
-    filename = joinpath("plots", "partitions_one_line", "$(profile)_partitions.png")
+    filename = joinpath(one_line_dir, "$(profile)_partitions.png")
     savefig(p, filename)
     println("Saved: ", filename)
 
@@ -265,7 +267,7 @@ if length(individual_plots) == 4
         link = :x
     )
 
-    combined_filename = joinpath("plots", "partitions", "NL_all_partitions.png")
+    combined_filename = joinpath(parts_dir, "NL_all_partitions.png")
     savefig(p_all, combined_filename)
 
     println("Saved combined plot: ", combined_filename)
@@ -282,7 +284,7 @@ if length(individual_plots_one_line) == 4
         link = :x
     )
 
-    combined_filename = joinpath("plots", "partitions_one_line", "NL_all_partitions.png")
+    combined_filename = joinpath(one_line_dir, "NL_all_partitions.png")
     savefig(p_all, combined_filename)
 
     println("Saved combined plot: ", combined_filename)

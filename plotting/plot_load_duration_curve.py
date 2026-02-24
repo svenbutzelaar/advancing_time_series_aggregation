@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-num_clusters = 1500
+num_clusters = 500
+extreme_preservation = True
 Path("plots/load_duration_curve").mkdir(parents=True, exist_ok=True)
 
 # --- Load CSVs ---
-df = pd.read_csv(f"plotting/{num_clusters}/partitions.csv")
-df_full_resolution = pd.read_csv(f"plotting/8760/partitions.csv")
+df = pd.read_csv(f"plotting/csv_data/partitions/{num_clusters}{'-extreme_preservation-true' if extreme_preservation else ''}.csv")
+df_full_resolution = pd.read_csv(f"plotting/csv_data/partitions/8760.csv")
 
 # --- Filter for NL ---
 df = df[df["location"] == "NL"]
@@ -89,5 +90,5 @@ for i, asset in enumerate(assets):
     ax.legend()
 
 plt.tight_layout()
-plt.savefig(f"plots/load_duration_curve/{num_clusters}.png")
+plt.savefig(f"plots/load_duration_curve/{num_clusters}{'-extreme_preservation-true' if extreme_preservation else ''}.png")
 plt.show()

@@ -1,10 +1,15 @@
 using Statistics
 using DataStructures
 
+
+include("profile_type.jl")
+
 mutable struct LinkedListNode
     start_index::Int
     end_index::Int
     sum_of_values::Vector{Float64}
+    max_of_values::Vector{Float64}
+    min_of_values::Vector{Float64}
     count::Int
     centroid::Vector{Float64}
     prev_node::Union{Nothing, LinkedListNode}
@@ -17,6 +22,8 @@ mutable struct LinkedListNode
             start_index,
             end_index,
             v,
+            copy(v),  # max
+            copy(v),  # min
             1,
             copy(v),
             nothing,
@@ -30,6 +37,8 @@ end
 function merge_nodes!(c1::LinkedListNode, c2::LinkedListNode)
     c1.end_index = c2.end_index
     c1.sum_of_values .+= c2.sum_of_values
+    c1.max_of_values .= max.(c1.max_of_values, c2.max_of_values)
+    c1.min_of_values .= min.(c1.min_of_values, c2.min_of_values)
     c1.count += c2.count
     c1.centroid .= c1.sum_of_values ./ c1.count
     c1.next_node = c2.next_node
@@ -50,6 +59,41 @@ function compute_ward_dissimilarity(c1::LinkedListNode, c2::LinkedListNode)
     return (c1.count * c2.count) / (c1.count + c2.count) * sqdist
 end
 
+function getRepresentativeValue(
+        c::LinkedListNode,
+        mode::ProfileType,
+        j::Int,
+        high_thresholds::Vector{Float64},
+        low_thresholds::Vector{Float64},
+        do_extreme_preservation::Bool,
+    )
+
+    mean_val = c.sum_of_values[j] / c.count
+    if !do_extreme_preservation
+        return mean_val
+    end
+
+    if mode == Demand
+        if c.max_of_values[j] >= high_thresholds[j]
+            # @show c.max_of_values[j], mode, c.centroid[j], c.count
+            return c.max_of_values[j]
+        else
+            return mean_val
+        end
+
+    elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
+        if c.min_of_values[j] <= low_thresholds[j]
+            # @show c.min_of_values[j], mode, c.centroid[j], c.count
+            return c.min_of_values[j]
+        else
+            return mean_val
+        end
+
+    else
+        return mean_val
+    end
+end
+
 # Wrapper struct for heap entries to enable comparison
 struct HeapEntry
     ward_criterion::Float64
@@ -63,10 +107,27 @@ Base.isless(a::HeapEntry, b::HeapEntry) = a.ward_criterion < b.ward_criterion
 # Internal clustering function
 function hierarchical_time_clustering_ward(
         values::Matrix{Float64}, 
-        n_prime::Int;
+        n_prime::Int,
+        modes::Vector{ProfileType};
         calc_stats=false,
+        do_extreme_preservation=true,
+        high_percentile=0.95,
+        low_percentile=0.05,
     )
     n, d = size(values)
+    @assert length(modes) == d "Length of modes must match number of columns"
+    
+    high_thresholds = zeros(d)
+    low_thresholds  = zeros(d)
+
+    for j in 1:d
+        sorted_col = sort(values[:, j])
+        high_idx = ceil(Int, high_percentile * n)
+        low_idx  = ceil(Int, low_percentile * n)
+
+        high_thresholds[j] = sorted_col[high_idx]
+        low_thresholds[j]  = sorted_col[low_idx]
+    end
     
     if calc_stats
         full_resolution_values_sorted = Vector{Vector{Float64}}()
@@ -75,9 +136,13 @@ function hierarchical_time_clustering_ward(
         end
     end
 
+    # @show high_thresholds
+    # @show low_thresholds
+
     ward_errors = Vector{Vector{Float64}}()
     ldc_errors_per_merge = Vector{Vector{Float64}}()
     result_values = Vector{Vector{Float64}}()
+    mean_values = Vector{Vector{Float64}}()
 
     # Create initial clusters
     clusters = [LinkedListNode(i, i, view(values, i, :)) for i in 1:n]
@@ -127,8 +192,16 @@ function hierarchical_time_clustering_ward(
             for j in 1:d
                 merged_values = Float64[]
                     for c in active_clusters
+                        rep_val = getRepresentativeValue(
+                            c,
+                            modes[j],
+                            j,
+                            high_thresholds,
+                            low_thresholds,
+                            do_extreme_preservation
+                        )
                         for _ in 1:c.count
-                            push!(merged_values, c.centroid[j])
+                            push!(merged_values, rep_val)
                         end
                     end
                 merged_sorted = sort(merged_values; rev=true)
@@ -167,8 +240,20 @@ function hierarchical_time_clustering_ward(
 
     for c in active_clusters
         push!(result_partitions, c.count)
-        push!(result_values, c.centroid)
+        rep_vec = Vector{Float64}(undef, d)
+        for j in 1:d
+            rep_vec[j] = getRepresentativeValue(
+                c,
+                modes[j],
+                j,
+                high_thresholds,
+                low_thresholds,
+                do_extreme_preservation
+            )
+        end
+        push!(result_values, rep_vec)
+        push!(mean_values, c.centroid)
     end
 
-    return result_partitions, result_values, ward_errors, ldc_errors_per_merge
+    return result_partitions, result_values, mean_values, ward_errors, ldc_errors_per_merge
 end
