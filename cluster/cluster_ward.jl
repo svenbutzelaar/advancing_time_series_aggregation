@@ -47,7 +47,7 @@ end
 function compute_ward_dissimilarity(c1::LinkedListNode, c2::LinkedListNode)
     diff = c1.centroid .- c2.centroid
     sqdist = sum(diff .* diff)
-    return (2 * c1.count * c2.count) / (c1.count + c2.count) * sqdist
+    return (c1.count * c2.count) / (c1.count + c2.count) * sqdist
 end
 
 # Wrapper struct for heap entries to enable comparison
@@ -121,9 +121,12 @@ function hierarchical_time_clustering_ward(
             ldc_error_vec = Float64[]
             ward_error_vec = Float64[]
 
+            # Can be faster by always keeping track of active clusters
+            active_clusters = filter(c -> c.active, clusters)
+
             for j in 1:d
                 merged_values = Float64[]
-                    for c in filter(c -> c.active, clusters)
+                    for c in active_clusters
                         for _ in 1:c.count
                             push!(merged_values, c.centroid[j])
                         end
