@@ -11,6 +11,8 @@ using Printf
 
 db_name = "obz_test.db"
 
+do_extreme_preservation=false
+
 profiles = [
     "NL_E_Demand",
     "NL_Solar",
@@ -66,27 +68,31 @@ df = DataFrame(DBInterface.execute(
     """
 ))
 
-df_old = DataFrame(DBInterface.execute(
-    connection,
-    """
-    SELECT 
-        profile_name,
-        rep_period,
-        timestep,
-        year,
-        value
-    FROM profiles_rep_periods_old
-    WHERE 
-            value IS NOT NULL
-        AND rep_period = $rep_period
-        AND year = $year
-        AND profile_name IN ('NL_E_Demand',
-                             'NL_Solar',
-                             'NL_Wind_Offshore',
-                             'NL_Wind_Onshore')
-    ORDER BY profile_name, timestep
-    """
-))
+df_old = copy(df)
+if do_extreme_preservation
+    df_old = DataFrame(DBInterface.execute(
+        connection,
+        """
+        SELECT 
+            profile_name,
+            rep_period,
+            timestep,
+            year,
+            value
+        FROM profiles_rep_periods_old
+        WHERE 
+                value IS NOT NULL
+            AND rep_period = $rep_period
+            AND year = $year
+            AND profile_name IN ('NL_E_Demand',
+                                'NL_Solar',
+                                'NL_Wind_Offshore',
+                                'NL_Wind_Onshore')
+        ORDER BY profile_name, timestep
+        """
+    )) 
+end
+    
 
 # ----------------------------
 # Load partitions
@@ -242,8 +248,12 @@ end
 # ----------------------------
 # Generate & Save Plots
 # ----------------------------
-parts_dir = "plots/partitions_with_extreme_parts"
-one_line_dir = "plots/partitions_with_extreme_one_line"
+parts_dir = "plots/partitions_parts"
+one_line_dir = "plots/partitions_one_line"
+if do_extreme_preservation
+    parts_dir = "plots/partitions_with_extreme_parts"
+    one_line_dir = "plots/partitions_with_extreme_one_line"
+end
 
 mkpath(parts_dir)
 mkpath(one_line_dir)

@@ -10,8 +10,8 @@ include("../cluster/cluster_partitions.jl")
 base_db = "obz_partitions_base.db"
 new_db  = "obz_partitions.db"
 
-num_clusters = 500
-do_extreme_preservation = true
+num_clusters = 200
+do_extreme_preservation = false
 dir = "plotting/csv_data/partitions"
 mkpath(dir)
 partitions_output_file = "$dir/$(num_clusters)-extreme_preservation-$do_extreme_preservation.csv"
@@ -60,9 +60,10 @@ df = DataFrame(DBInterface.execute(
         """
     ))
 
-# cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters; calc_stats=true)
+cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters; calc_stats=true, do_extreme_preservation=do_extreme_preservation)
+CSV.write("plotting/csv_data/errors_per_location.csv",stats)   
 # CSV.write("plotting/csv_data/errors_per_location_extreme_preservation.csv",stats)   
 
 # for writing
-cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters; calc_stats=false, do_extreme_preservation=do_extreme_preservation)
-CSV.write(partitions_output_file, results)
+# cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters; calc_stats=false, do_extreme_preservation=do_extreme_preservation)
+# CSV.write(partitions_output_file, results)

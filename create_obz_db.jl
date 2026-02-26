@@ -349,7 +349,7 @@ DuckDB.query(
     ",
 )
 
-cluster_partitions!(connection, 1500, true, true)
+cluster_partitions!(connection, 1500, true, false)
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(

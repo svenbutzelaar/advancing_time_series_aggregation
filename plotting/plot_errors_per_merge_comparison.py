@@ -6,8 +6,8 @@ from pathlib import Path
 
 # --- Config: CSV files and which columns to plot ---
 csv_files = {
-    "Per Location": "plotting/csv_data/cummulative_errors_per_location.csv",
-    "Per Profile": "plotting/csv_data/cummulative_errors_per_profile.csv"
+    "Normal": "plotting/csv_data/errors_per_location.csv",
+    "Extreme preservation": "plotting/csv_data/errors_per_location_extreme_preservation.csv"
 }
 
 # Clear, academic labels
@@ -64,5 +64,5 @@ for error_col in error_labels:
     plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig(output_folder / f"{error_col}_comparison.png", dpi=300)
+    plt.savefig(output_folder / f"{error_col}_comparison_extreme.png", dpi=300)
     plt.show()

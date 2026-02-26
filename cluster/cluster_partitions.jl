@@ -11,6 +11,7 @@ include("profile_type.jl")
         conn::DuckDB.DB,
         num_clusters::Int,
         dependant_per_location::Bool;
+        do_extreme_preservation::Bool;
     )
 
 Runs Ward clustering on profile tables stored in DuckDB.
