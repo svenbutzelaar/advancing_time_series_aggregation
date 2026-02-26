@@ -20,6 +20,8 @@ mutable struct LinkedListNode
 
     representative::Vector{Float64}
 
+    is_extreme::Vector{Bool}
+
     prev_node::Union{Nothing, LinkedListNode}
     next_node::Union{Nothing, LinkedListNode}
     active::Bool
@@ -28,6 +30,9 @@ mutable struct LinkedListNode
         start_index::Int,
         end_index::Int,
         value::AbstractVector{<:Float64},
+        modes::Vector{ProfileType},
+        high_thresholds::Vector{Float64},
+        low_thresholds::Vector{Float64},
     )
         v = collect(value)
 
@@ -39,6 +44,7 @@ mutable struct LinkedListNode
             copy(v),
             1,
             copy(v),
+            getIsExtreme(value, modes, high_thresholds, low_thresholds),
             nothing,
             nothing,
             true
@@ -64,8 +70,8 @@ function merge_nodes!(
     c1.max_of_values .= max.(c1.max_of_values, c2.max_of_values)
     c1.min_of_values .= min.(c1.min_of_values, c2.min_of_values)
     c1.count += c2.count
+    c1.is_extreme .= c1.is_extreme .|| c2.is_extreme
 
-    # update representative AFTER merge
     update_representative!(c1, modes, high_thresholds, low_thresholds, config)
 
     c1.next_node = c2.next_node
@@ -91,6 +97,18 @@ function compute_ward_dissimilarity(
     sqdist = sum(diff .* diff)
 
     return (c1.count * c2.count) / (c1.count + c2.count) * sqdist
+end
+
+
+# =========================
+# conflict in extreme
+# =========================
+
+function is_conflict_in_extreme(
+    c1::LinkedListNode,
+    c2::LinkedListNode,
+)
+     return any(c1.is_extreme .!= c2.is_extreme)
 end
 
 # =========================
@@ -135,18 +153,44 @@ function getRepresentativeValue(
     return c.representative[j]
 end
 
+function getIsExtreme(
+    value::AbstractVector{<:Float64},
+    modes::Vector{ProfileType},
+    high_thresholds::Vector{Float64},
+    low_thresholds::Vector{Float64},
+)
+    result = []
+
+    for (i, v) in enumerate(value)
+        mode = modes[i]
+
+        if mode == Demand
+            push!(result, v >= high_thresholds[i])
+        elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
+            push!(result, v <= low_thresholds[i])
+        else
+            push!(result, false)
+        end
+
+    end
+
+    return result
+end
+
 # =========================
 # Heap wrapper
 # =========================
 
 struct HeapEntry
+    conflict_in_extreme::Bool
     ward_criterion::Float64
     c1::LinkedListNode
     c2::LinkedListNode
 end
 
 Base.isless(a::HeapEntry, b::HeapEntry) =
-    a.ward_criterion < b.ward_criterion
+    (a.conflict_in_extreme, a.ward_criterion) <
+    (b.conflict_in_extreme, b.ward_criterion)
 
 # =========================
 # Main clustering function
@@ -200,7 +244,7 @@ function hierarchical_time_clustering_ward(
     # Initialize clusters
     # -------------------------
 
-    clusters = [LinkedListNode(i, i, view(values, i, :)) for i in 1:n]
+    clusters = [LinkedListNode(i, i, view(values, i, :), modes, high_thresholds, low_thresholds) for i in 1:n]
 
     for i in 1:n-1
         clusters[i].next_node = clusters[i+1]
@@ -212,7 +256,8 @@ function hierarchical_time_clustering_ward(
     function push_merge(c1::LinkedListNode, c2::LinkedListNode)
         if c1.active && c2.active
             ward_crit = compute_ward_dissimilarity(c1, c2)
-            push!(heap, HeapEntry(ward_crit, c1, c2))
+            conflict = config.extreme_preservation == SeperateExtremes ? is_conflict_in_extreme(c1, c2) : false
+            push!(heap, HeapEntry(conflict, ward_crit, c1, c2))
         end
     end
 
@@ -311,7 +356,8 @@ function hierarchical_time_clustering_ward(
     for c in active_clusters
 
         push!(result_partitions, c.count)
-        if config.extreme_preservation == Afterwards
+        if config.extreme_preservation == Afterwards || config.extreme_preservation == SeperateExtremes
+
             rep_vec = [
                 getRepresentativeValue(
                     c,

@@ -7,15 +7,16 @@ from matplotlib.lines import Line2D
 
 # --- Config: CSV files and which columns to plot ---
 csv_files = {
-    "Per Location": "plotting/csv_data/errors_per_location.csv",
+    # "Per Location": "plotting/csv_data/errors_per_location.csv",
     # "Per Profile": "plotting/csv_data/errors_per_profile.csv",
     # "Extreme preservation": "plotting/csv_data/errors_per_location_extreme_preservation.csv"
+    "EP extreme seperation": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremes_hp0.95_lp0.05.csv",
 }
 
 # Clear, academic labels
 error_labels = {
     "errors": "Sum of Squared Errors (SSE)",
-    # "ldc_errors": "Load Duration Curve RMSE"
+    "ldc_errors": "Load Duration Curve RMSE"
 }
 
 # --- Asset color mapping ---
@@ -89,8 +90,8 @@ for error_col in error_labels:
     # Combine legends cleanly
     plt.legend(handles=asset_legend_handles + [mean_handle], loc="upper left")
     
-    plt.ylim(top=10, bottom=0)
+    # plt.ylim(top=10, bottom=0)
 
     plt.tight_layout()
-    plt.savefig(output_folder / f"{error_col}_y_lim.png")
+    plt.savefig(output_folder / f"{error_col}_ward_k200_perlocation_SeperateExtremes_hp0.95_lp0.05.png")
     plt.show()

@@ -9,12 +9,13 @@ csv_files = {
     "No EP": "plotting/csv_data/per_merge/ward_k200_perlocation_NoExtremePreservation_hp0.95_lp0.05.csv",
     "EP after clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_Afterwards_hp0.95_lp0.05.csv",
     "EP during clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_DuringClustering_hp0.95_lp0.05.csv",
+    "EP extreme seperation": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremes_hp0.95_lp0.05.csv",
 }
 
 # Clear, academic labels
 error_labels = {
-    "errors": "Sum of Squared Errors (SSE)",
-    # "ldc_errors": "Load Duration Curve RMSE"
+    # "errors": "Sum of Squared Errors (SSE)",
+    "ldc_errors": "Load Duration Curve RMSE"
 }
 
 output_folder = Path("plots")
@@ -51,12 +52,12 @@ for error_col in error_labels:
             label=label
         )
 
-        plt.fill_between(
-            x,
-            mean_error - std_error,
-            mean_error + std_error,
-            alpha=0.25
-        )
+        # plt.fill_between(
+        #     x,
+        #     mean_error - std_error,
+        #     mean_error + std_error,
+        #     alpha=0.25
+        # )
 
     plt.xlabel("Number of HC Merges")
     plt.ylabel(error_labels.get(error_col, error_col))

@@ -2,6 +2,7 @@
     NoExtremePreservation
     Afterwards
     DuringClustering
+    SeperateExtremes
 end
 
 Base.@kwdef struct ClusteringConfig

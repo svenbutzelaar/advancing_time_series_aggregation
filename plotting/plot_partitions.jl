@@ -12,7 +12,7 @@ include("../cluster/config.jl")
 
 config = ClusteringConfig(
     dependant_per_location = true,
-    extreme_preservation = DuringClustering,
+    extreme_preservation = SeperateExtremes,
     high_percentile = 0.95,
     low_percentile = 0.05,
     )
