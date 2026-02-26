@@ -84,7 +84,7 @@ function cluster_partitions!(
     # OPTIONAL EXTREME UPDATE
     # =========================
 
-    if config.do_extreme_preservation
+    if config.extreme_preservation != NoExtremePreservation
         update_profiles_rep_periods_with_new_values!(conn, results)
     end
 

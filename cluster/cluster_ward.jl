@@ -84,7 +84,7 @@ function getRepresentativeValue(
 
     mean_val = c.sum_of_values[j] / c.count
 
-    if !config.do_extreme_preservation
+    if config.extreme_preservation == NoExtremePreservation
         return mean_val
     end
 

@@ -18,7 +18,7 @@ period_duration = 168
 
 config = ClusteringConfig(
     dependant_per_location = true,
-    do_extreme_preservation = true,
+    extreme_preservation = Afterwards,
     high_percentile = 0.95,
     low_percentile = 0.05,
 )
