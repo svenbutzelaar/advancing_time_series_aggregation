@@ -7,6 +7,7 @@ using TulipaEnergyModel: TulipaEnergyModel as TEM
 using Distances: SqEuclidean
 using Random: Random
 include("cluster/cluster_partitions.jl")
+include("cluster/config.jl")
 
 user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
 database_name = "obz_test.db"
@@ -14,6 +15,14 @@ database_name = "obz_test.db"
 #parameters
 num_rep_periods = 3
 period_duration = 168
+
+config = ClusteringConfig(
+    dependant_per_location = true,
+    do_extreme_preservation = true,
+    high_percentile = 0.95,
+    low_percentile = 0.05,
+)
+num_clusters = 1500
 
 readdir(user_input_dir)
 
@@ -349,7 +358,7 @@ DuckDB.query(
     ",
 )
 
-cluster_partitions!(connection, 1500, true, false)
+cluster_partitions!(connection, num_clusters, config)
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(
