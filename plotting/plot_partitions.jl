@@ -4,14 +4,23 @@ using Statistics
 using DuckDB: DBInterface, DuckDB
 using FilePathsBase
 using Printf
+include("../cluster/config.jl")
 
 # ----------------------------
 # Settings
 # ----------------------------
 
-db_name = "obz_test.db"
+config = ClusteringConfig(
+    dependant_per_location = true,
+    extreme_preservation = DuringClustering,
+    high_percentile = 0.95,
+    low_percentile = 0.05,
+    )
+num_clusters = 1500
+    
+file_name = experiment_name(config, num_clusters)
+db_name = "$file_name.db"
 
-do_extreme_preservation=false
 
 profiles = [
     "NL_E_Demand",
@@ -69,7 +78,7 @@ df = DataFrame(DBInterface.execute(
 ))
 
 df_old = copy(df)
-if do_extreme_preservation
+if config.extreme_preservation != NoExtremePreservation
     df_old = DataFrame(DBInterface.execute(
         connection,
         """
@@ -248,12 +257,8 @@ end
 # ----------------------------
 # Generate & Save Plots
 # ----------------------------
-parts_dir = "plots/partitions_parts"
-one_line_dir = "plots/partitions_one_line"
-if do_extreme_preservation
-    parts_dir = "plots/partitions_with_extreme_parts"
-    one_line_dir = "plots/partitions_with_extreme_one_line"
-end
+parts_dir = "plots/partitions/$(db_name)_parts"
+one_line_dir = "plots/partitions/$(db_name)_one_line"
 
 mkpath(parts_dir)
 mkpath(one_line_dir)

@@ -8,7 +8,8 @@ extreme_preservation = True
 Path("plots/load_duration_curve").mkdir(parents=True, exist_ok=True)
 
 # --- Load CSVs ---
-df = pd.read_csv(f"plotting/csv_data/partitions/{num_clusters}{'-extreme_preservation-true' if extreme_preservation else ''}.csv")
+filename = "ward_k1500_perlocation_NoExtremePreservation_hp0.95_lp0.05"
+df = pd.read_csv(f"plotting/csv_data/partitions/{filename}.csv")
 df_full_resolution = pd.read_csv(f"plotting/csv_data/partitions/8760.csv")
 
 # --- Filter for NL ---
@@ -90,5 +91,5 @@ for i, asset in enumerate(assets):
     ax.legend()
 
 plt.tight_layout()
-plt.savefig(f"plots/load_duration_curve/{num_clusters}{'-extreme_preservation-true' if extreme_preservation else ''}.png")
+plt.savefig(f"plots/load_duration_curve/{filename}.png")
 plt.show()

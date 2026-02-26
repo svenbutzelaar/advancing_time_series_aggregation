@@ -6,14 +6,15 @@ from pathlib import Path
 
 # --- Config: CSV files and which columns to plot ---
 csv_files = {
-    "Normal": "plotting/csv_data/errors_per_location.csv",
-    "Extreme preservation": "plotting/csv_data/errors_per_location_extreme_preservation.csv"
+    "No EP": "plotting/csv_data/per_merge/ward_k200_perlocation_NoExtremePreservation_hp0.95_lp0.05.csv",
+    "EP after clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_Afterwards_hp0.95_lp0.05.csv",
+    "EP during clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_DuringClustering_hp0.95_lp0.05.csv",
 }
 
 # Clear, academic labels
 error_labels = {
     "errors": "Sum of Squared Errors (SSE)",
-    "ldc_errors": "Load Duration Curve RMSE"
+    # "ldc_errors": "Load Duration Curve RMSE"
 }
 
 output_folder = Path("plots")

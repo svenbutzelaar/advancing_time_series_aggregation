@@ -11,11 +11,11 @@ include("../cluster/config.jl")
 base_db = "obz_partitions_base.db"
 new_db  = "obz_partitions.db"
 
-num_clusters = 1500
+num_clusters = 200
 config = ClusteringConfig(
-    calc_stats = false,
+    calc_stats = true,
     dependant_per_location = true,
-    extreme_preservation = Afterwards,
+    extreme_preservation = DuringClustering,
     high_percentile = 0.95,
     low_percentile = 0.05,
 )
@@ -69,10 +69,10 @@ df = DataFrame(DBInterface.execute(
         """
     ))
 
-# cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters, config)
-# CSV.write("plotting/csv_data/errors_per_location.csv",stats)   
+cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters, config)
+CSV.write("plotting/csv_data/per_merge/$file_name.csv",stats)   
 # CSV.write("plotting/csv_data/errors_per_location_extreme_preservation.csv",stats)   
 
 # for writing
-cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters, config)
-CSV.write(partitions_output_file, results)
+# cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters, config)
+# CSV.write(partitions_output_file, results)

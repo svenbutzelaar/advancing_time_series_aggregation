@@ -10,7 +10,6 @@ include("cluster/cluster_partitions.jl")
 include("cluster/config.jl")
 
 user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
-database_name = "obz_test.db"
 
 #parameters
 num_rep_periods = 3
@@ -18,12 +17,16 @@ period_duration = 168
 
 config = ClusteringConfig(
     dependant_per_location = true,
-    extreme_preservation = Afterwards,
+    extreme_preservation = DuringClustering,
     high_percentile = 0.95,
     low_percentile = 0.05,
-)
-num_clusters = 1500
+    )
 
+num_clusters = 1500
+    
+file_name = experiment_name(config, num_clusters)
+database_name = "$file_name.db"
+    
 readdir(user_input_dir)
 
 if isfile(database_name)

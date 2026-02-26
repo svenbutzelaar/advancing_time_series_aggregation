@@ -11,23 +11,32 @@ include("config.jl")
 mutable struct LinkedListNode
     start_index::Int
     end_index::Int
+
     sum_of_values::Vector{Float64}
     max_of_values::Vector{Float64}
     min_of_values::Vector{Float64}
+
     count::Int
-    centroid::Vector{Float64}
+
+    representative::Vector{Float64}
+
     prev_node::Union{Nothing, LinkedListNode}
     next_node::Union{Nothing, LinkedListNode}
     active::Bool
 
-    function LinkedListNode(start_index::Int, end_index::Int, value::AbstractVector{<:Float64})
+    function LinkedListNode(
+        start_index::Int,
+        end_index::Int,
+        value::AbstractVector{<:Float64},
+    )
         v = collect(value)
+
         new(
             start_index,
             end_index,
-            v,
-            copy(v),   # max
-            copy(v),   # min
+            copy(v),
+            copy(v),
+            copy(v),
             1,
             copy(v),
             nothing,
@@ -41,13 +50,24 @@ end
 # Merge logic
 # =========================
 
-function merge_nodes!(c1::LinkedListNode, c2::LinkedListNode)
+function merge_nodes!(
+    c1::LinkedListNode,
+    c2::LinkedListNode,
+    modes,
+    high_thresholds,
+    low_thresholds,
+    config,
+)
+
     c1.end_index = c2.end_index
     c1.sum_of_values .+= c2.sum_of_values
     c1.max_of_values .= max.(c1.max_of_values, c2.max_of_values)
     c1.min_of_values .= min.(c1.min_of_values, c2.min_of_values)
     c1.count += c2.count
-    c1.centroid .= c1.sum_of_values ./ c1.count
+
+    # update representative AFTER merge
+    update_representative!(c1, modes, high_thresholds, low_thresholds, config)
+
     c1.next_node = c2.next_node
 
     if c2.next_node !== nothing
@@ -63,9 +83,13 @@ end
 # Ward dissimilarity
 # =========================
 
-function compute_ward_dissimilarity(c1::LinkedListNode, c2::LinkedListNode)
-    diff = c1.centroid .- c2.centroid
+function compute_ward_dissimilarity(
+    c1::LinkedListNode,
+    c2::LinkedListNode,
+)
+    diff = c1.representative .- c2.representative
     sqdist = sum(diff .* diff)
+
     return (c1.count * c2.count) / (c1.count + c2.count) * sqdist
 end
 
@@ -73,33 +97,42 @@ end
 # Representative value
 # =========================
 
+function update_representative!(
+    c::LinkedListNode,
+    modes::Vector{ProfileType},
+    high_thresholds::Vector{Float64},
+    low_thresholds::Vector{Float64},
+    config::ClusteringConfig,
+)
+    c.representative .= c.sum_of_values ./ c.count
+
+    if config.extreme_preservation == DuringClustering
+        for j in eachindex(c.sum_of_values)    
+            mode = modes[j]
+            c.representative[j] = getRepresentativeValue(c, mode, j, high_thresholds, low_thresholds)
+        end
+    end
+end
+
 function getRepresentativeValue(
     c::LinkedListNode,
     mode::ProfileType,
     j::Int,
     high_thresholds::Vector{Float64},
     low_thresholds::Vector{Float64},
-    config::ClusteringConfig,
 )
-
-    mean_val = c.sum_of_values[j] / c.count
-
-    if config.extreme_preservation == NoExtremePreservation
-        return mean_val
-    end
-
     if mode == Demand
         return c.max_of_values[j] >= high_thresholds[j] ?
                c.max_of_values[j] :
-               mean_val
+               c.representative[j]
 
     elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
         return c.min_of_values[j] <= low_thresholds[j] ?
                c.min_of_values[j] :
-               mean_val
+               c.representative[j]
     end
 
-    return mean_val
+    return c.representative[j]
 end
 
 # =========================
@@ -222,15 +255,7 @@ function hierarchical_time_clustering_ward(
                 merged_values = Float64[]
 
                 for c in active_clusters
-                    rep_val = getRepresentativeValue(
-                        c,
-                        modes[j],
-                        j,
-                        high_thresholds,
-                        low_thresholds,
-                        config,
-                    )
-                    append!(merged_values, fill(rep_val, c.count))
+                    append!(merged_values, fill(c.representative[j], c.count))
                 end
 
                 merged_sorted = sort(merged_values; rev=true)
@@ -255,7 +280,14 @@ function hierarchical_time_clustering_ward(
         # Merge
         # -------------------------
 
-        merge_nodes!(entry.c1, entry.c2)
+        merge_nodes!(
+            entry.c1, 
+            entry.c2,
+            modes,
+            high_thresholds,
+            low_thresholds,
+            config,
+        )
         merges += 1
 
         if entry.c1.prev_node !== nothing &&
@@ -279,21 +311,22 @@ function hierarchical_time_clustering_ward(
     for c in active_clusters
 
         push!(result_partitions, c.count)
-
-        rep_vec = [
-            getRepresentativeValue(
-                c,
-                modes[j],
-                j,
-                high_thresholds,
-                low_thresholds,
-                config,
-            )
-            for j in 1:d
-        ]
-
-        push!(result_values, rep_vec)
-        push!(mean_values, c.centroid)
+        if config.extreme_preservation == Afterwards
+            rep_vec = [
+                getRepresentativeValue(
+                    c,
+                    modes[j],
+                    j,
+                    high_thresholds,
+                    low_thresholds
+                )
+                for j in 1:d
+            ]
+            push!(result_values, rep_vec)
+        else
+            push!(result_values, c.representative)
+        end
+        push!(mean_values, c.sum_of_values ./ c.count)
     end
 
     return result_partitions,
