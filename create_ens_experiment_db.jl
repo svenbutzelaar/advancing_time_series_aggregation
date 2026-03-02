@@ -1,14 +1,26 @@
 using Pkg
 using DuckDB: DBInterface, DuckDB
 using DataFrames: DataFrame
+include("cluster/config.jl")
 
-user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
-dataset_full_resolution = "obz-invest"
-case = "-part"
+
+config = ClusteringConfig(
+    dependant_per_location = true,
+    extreme_preservation = SeperateExtremes,
+    high_percentile = 0.95,
+    low_percentile = 0.05,
+    )
+
+num_clusters = 1500
+    
+file_name = experiment_name(config, num_clusters)
+database_name = "$file_name.db"
+
+dataset_full_resolution = "obz-invest-full-resolution"
 source_db = dataset_full_resolution * ".db"
-target_db = dataset_full_resolution * case * "-ens.db"
+target_db = "ens_$(file_name).db"
 
-var_flow_path  = joinpath("outputs-" * dataset_full_resolution * case, "var_assets_investment.csv")
+var_assets_investment_path  = joinpath("outputs-" * file_name, "var_assets_investment.csv")
 
 # Copy the database (overwrite if it already exists)
 cp(source_db, target_db; force = true)
@@ -51,7 +63,7 @@ DuckDB.query(
     "
     UPDATE asset_both
     SET initial_units = v.solution
-    FROM read_csv_auto('$var_flow_path') as v
+    FROM read_csv_auto('$var_assets_investment_path') as v
     WHERE asset_both.asset = v.asset;
     "
 )

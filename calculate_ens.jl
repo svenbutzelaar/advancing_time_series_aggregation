@@ -1,11 +1,25 @@
 using DuckDB: DBInterface, DuckDB
 using DataFrames
 using CSV
+include("cluster/config.jl")
+
+
+
+config = ClusteringConfig(
+    dependant_per_location = true,
+    extreme_preservation = SeperateExtremes,
+    high_percentile = 0.95,
+    low_percentile = 0.05,
+    )
+
+num_clusters = 1500
+    
+file_name = experiment_name(config, num_clusters)
 
 # Connect to DuckDB (in-memory, or replace with a file DB if you want)
 connection = DBInterface.connect(DuckDB.DB)
 
-data_dir = "outputs-obz-invest-part-ens"   # change this later if needed
+data_dir = "outputs-ens_$file_name"   # change this later if needed
 
 input_csv  = joinpath(data_dir, "var_flow.csv")
 output_csv = joinpath(data_dir, "total_ens_per_country.csv")
@@ -32,5 +46,8 @@ ORDER BY country;
 """))
 
 CSV.write(output_csv, df)
+
+total_ens_sum = sum(df.total_ens)
+@show file_name, total_ens_sum
 
 close(connection)

@@ -24,18 +24,26 @@ using Plots
 using Distances
 
 
-# === Read command-line argument ===
-if length(ARGS) < 1
-    println("Usage: julia run_experiment.jl <case_name>")
-    println("Example: julia run_experiment.jl obz")
-    exit(1)
+include("cluster/config.jl")
+
+calc_ens = true
+
+config = ClusteringConfig(
+    dependant_per_location = true,
+    extreme_preservation = SeperateExtremes,
+    high_percentile = 0.95,
+    low_percentile = 0.05,
+    )
+
+num_clusters = 1500
+    
+file_name = experiment_name(config, num_clusters)
+
+if calc_ens
+    file_name = "ens_" * file_name
 end
 
-case_name = ARGS[1]
-
-# case_name = "xx"
-
-connection = DBInterface.connect(DuckDB.DB, case_name * ".db")
+connection = DBInterface.connect(DuckDB.DB, "$file_name.db")
 
 TEM.populate_with_defaults!(connection)
 
@@ -49,7 +57,7 @@ TEM.create_model!(energy_problem;
 TEM.solve_model!(energy_problem)
 TEM.save_solution!(energy_problem; compute_duals = true)
     
-output_files = "outputs-" * case_name
+output_files = "outputs-" * file_name
 isdir(output_files) || mkdir(output_files)
 TEM.export_solution_to_csv_files(output_files, energy_problem)
 
