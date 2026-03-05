@@ -3,6 +3,7 @@
     Afterwards
     DuringClustering
     SeperateExtremes
+    SeperateExtremesSum
 end
 
 Base.@kwdef struct ClusteringConfig

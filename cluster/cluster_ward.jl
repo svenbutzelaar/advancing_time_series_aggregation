@@ -104,11 +104,11 @@ end
 # conflict in extreme
 # =========================
 
-function is_conflict_in_extreme(
+function get_conflict_in_extreme_count(
     c1::LinkedListNode,
     c2::LinkedListNode,
 )
-     return any(c1.is_extreme .!= c2.is_extreme)
+     return sum(c1.is_extreme .!= c2.is_extreme)
 end
 
 # =========================
@@ -182,7 +182,7 @@ end
 # =========================
 
 struct HeapEntry
-    conflict_in_extreme::Bool
+    conflict_in_extreme::Int64
     ward_criterion::Float64
     c1::LinkedListNode
     c2::LinkedListNode
@@ -254,10 +254,26 @@ function hierarchical_time_clustering_ward(
     heap = MutableBinaryMinHeap{HeapEntry}()
 
     function push_merge(c1::LinkedListNode, c2::LinkedListNode)
-        if c1.active && c2.active
-            ward_crit = compute_ward_dissimilarity(c1, c2)
-            conflict = config.extreme_preservation == SeperateExtremes ? is_conflict_in_extreme(c1, c2) : false
-            push!(heap, HeapEntry(conflict, ward_crit, c1, c2))
+        if !(c1.active && c2.active)
+            return
+        end
+
+        ward_crit = compute_ward_dissimilarity(c1, c2)
+        conflict  = compute_conflict_value(c1, c2)
+
+        push!(heap, HeapEntry(conflict, ward_crit, c1, c2))
+    end
+
+
+    function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
+        mode = config.extreme_preservation
+
+        if mode == SeperateExtremes
+            return min(1, get_conflict_in_extreme_count(c1, c2))
+        elseif mode == SeperateExtremesSum
+            return get_conflict_in_extreme_count(c1, c2)
+        else
+            return 0
         end
     end
 
