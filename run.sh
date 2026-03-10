@@ -24,6 +24,8 @@ timestamp_file=$(date "+%Y%m%d_%H%M%S")
 LOG_DIR="$base_dir/logs"
 [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR"
 
+EXTRA_ARGS="$@"
+
 # ================================
 # Helpers
 # ================================
@@ -36,7 +38,7 @@ run_experiment() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] START $script_name calc_ens=$calc_ens"
     echo "Logging to $log_file"
 
-    srun julia --project cli.jl "$script_name" $([ "$calc_ens" = "true" ] && echo "--calc_ens") "$@" > "$log_file" 2>&1
+    srun julia --project cli.jl $([ "$calc_ens" = "true" ] && echo "--calc_ens") $EXTRA_ARGS "$script_name" > "$log_file" 2>&1
 
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE $script_name calc_ens=$calc_ens"
 }
@@ -47,6 +49,6 @@ run_experiment() {
 
 run_experiment false run_experiment.jl
 
-srun julia --project cli.jl create_ens_experiment_db.jl "$@" > "$LOG_DIR/create_ens_experiment_db_${timestamp_file}.log" 2>&1
+srun julia --project cli.jl $EXTRA_ARGS create_ens_experiment_db.jl > "$LOG_DIR/create_ens_experiment_db_${timestamp_file}.log" 2>&1
 
 run_experiment true run_experiment.jl

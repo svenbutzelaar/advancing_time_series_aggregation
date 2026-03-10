@@ -15,13 +15,17 @@ user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
 num_rep_periods = 3
 period_duration = 168
 
+create_obz_invest_full_resolution = false
 
 config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
 database_name = "db_files/$file_name.db"
-# database_name = "db_files/obz-invest-full-resolution.db"
+
+if create_obz_invest_full_resolution
+    database_name = "db_files/obz-invest-full-resolution.db"
+end
     
 readdir(user_input_dir)
 
@@ -311,6 +315,7 @@ DuckDB.query(
       SELECT
         asset,
         commission_year AS year,
+        commission_year AS milestone_year,
         profile_type,
         profile_name
       FROM assets_storage_min_max_reservoir_level_profiles
@@ -325,6 +330,7 @@ DuckDB.query(
     SELECT
         t.name AS asset,
         t.year,
+        t.year as milestone_year,
         t.partition::varchar(255) AS partition,
         rep_periods_data.rep_period,
         'uniform' AS specification,
@@ -343,6 +349,7 @@ DuckDB.query(
         flow.from_asset,
         flow.to_asset,
         t_from.year,
+        t_from.year as milestone_year,
         t_from.rep_period,
         'uniform' AS specification,
         IF(
@@ -360,7 +367,25 @@ DuckDB.query(
     ",
 )
 
-# cluster_partitions!(connection, config)
+if !create_obz_invest_full_resolution
+    cluster_partitions!(connection, config)
+end
+
+# copy year to milestone_year
+for table in ["profiles_rep_periods", "rep_periods_data", "rep_periods_mapping", "timeframe_data"]
+
+    DuckDB.query(
+        connection,
+        "ALTER TABLE $table ADD COLUMN milestone_year INT;"
+    )
+
+    DuckDB.query(
+        connection,
+        "UPDATE $table SET milestone_year = year;"
+    )
+
+end
+
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(
@@ -387,8 +412,9 @@ DuckDB.query(
     SELECT
         cte_split_profiles.profile_name,
         cte_split_profiles.year,
+        cte_split_profiles.year AS milestone_year,
         cte_split_profiles.period,
-        AVG(cte_split_profiles.value) AS value, -- Computing the average aggregation
+        AVG(cte_split_profiles.value) AS value,
     FROM cte_split_profiles
     GROUP BY
         cte_split_profiles.profile_name,

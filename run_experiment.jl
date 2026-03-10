@@ -23,7 +23,7 @@ end
 
 connection = DBInterface.connect(DuckDB.DB, "db_files/$file_name.db")
 
-TEM.populate_with_defaults!(connection)
+# TEM.populate_with_defaults!(connection)
 
 energy_problem = TEM.EnergyProblem(connection)
 TEM.create_model!(energy_problem;
