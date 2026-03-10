@@ -46,7 +46,7 @@ if calc_ens
     file_name = "ens_" * file_name
 end
 
-connection = DBInterface.connect(DuckDB.DB, "$file_name.db")
+connection = DBInterface.connect(DuckDB.DB, "db_files/$file_name.db")
 
 # TEM.populate_with_defaults!(connection)
 

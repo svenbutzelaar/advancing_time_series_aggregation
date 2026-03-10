@@ -14,7 +14,7 @@ file_name = "full_resolution"
 # Connect to DuckDB (in-memory, or replace with a file DB if you want)
 connection = DBInterface.connect(DuckDB.DB)
 
-data_dir = "outputs-ens_$file_name"   # change this later if needed
+data_dir = "outputs/ens_$file_name"   # change this later if needed
 
 input_csv  = joinpath(data_dir, "var_flow.csv")
 output_csv = joinpath(data_dir, "total_ens_per_country.csv")

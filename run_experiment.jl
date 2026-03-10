@@ -21,7 +21,7 @@ if calc_ens
     file_name = "ens_" * file_name
 end
 
-connection = DBInterface.connect(DuckDB.DB, "$file_name.db")
+connection = DBInterface.connect(DuckDB.DB, "db_files/$file_name.db")
 
 TEM.populate_with_defaults!(connection)
 
@@ -33,7 +33,7 @@ TEM.create_model!(energy_problem;
 TEM.solve_model!(energy_problem)
 TEM.save_solution!(energy_problem; compute_duals = true)
 
-output_files = "outputs-" * file_name
+output_files = "outputs/" * file_name
 isdir(output_files) || mkdir(output_files)
 TEM.export_solution_to_csv_files(output_files, energy_problem)
 

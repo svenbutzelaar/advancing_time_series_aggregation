@@ -13,8 +13,8 @@ file_name = "full_resolution"
 database_name = "$file_name.db"
 
 dataset_full_resolution = "obz-invest-full-resolution"
-source_db = dataset_full_resolution * ".db"
-target_db = "ens_$(file_name).db"
+source_db = "db_files/$(dataset_full_resolution).db"
+target_db = "db_files/ens_$(file_name).db"
 
 var_assets_investment_path  = joinpath("outputs-" * file_name, "var_assets_investment.csv")
 

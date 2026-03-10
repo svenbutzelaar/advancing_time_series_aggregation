@@ -20,8 +20,8 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
-database_name = "$file_name.db"
-# database_name = "full_resolution.db"
+database_name = "db_files/$file_name.db"
+# database_name = "db_files/obz-invest-full-resolution.db"
     
 readdir(user_input_dir)
 
@@ -360,7 +360,7 @@ DuckDB.query(
     ",
 )
 
-cluster_partitions!(connection, config)
+# cluster_partitions!(connection, config)
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(

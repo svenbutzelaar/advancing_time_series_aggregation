@@ -1,8 +1,13 @@
 using Pkg
 using DuckDB: DBInterface, DuckDB
 using DataFrames: DataFrame
+include("cluster/config.jl")
 
-database_name = "ens_ward_k1500_perlocation_Afterwards_hp0.95_lp0.05.db"
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
+
+println("Using config: ", config)
+file_name = experiment_name(config)
+database_name = "db_files/$file_name.db"
 
 # remove .db for output directory name
 output_dir = "inputs/" * replace(database_name, ".db" => "")

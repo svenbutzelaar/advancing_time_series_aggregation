@@ -14,7 +14,7 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
-db_name = "$file_name.db"
+db_name = "db_files/$file_name.db"
 
 
 profiles = [
