@@ -41,6 +41,17 @@ tables_to_export = [
 ]
 
 for tbl in tables_to_export
+    # Check if table exists
+    result = DBInterface.execute(
+        connection,
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = '$tbl';"
+    ) |> DataFrame
+    
+    if result[1, 1] == 0
+        println("Skipping '$tbl': table does not exist")
+        continue
+    end
+    
     # replace _ with - in the output filename
     csv_name = replace(tbl, "_" => "-") * ".csv"
     DBInterface.execute(

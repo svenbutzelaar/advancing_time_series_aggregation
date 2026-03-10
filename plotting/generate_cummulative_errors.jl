@@ -34,7 +34,7 @@ results = DataFrame(
     partition = String[],
     values = String[],
     mean_values = String[],
-    year = Int64[],
+    milestone_year = Int64[],
     location = String[],
 )
 
@@ -42,7 +42,7 @@ stats = DataFrame(
     asset = String[],
     location = String[],
     rep_period = Int64[],
-    year = Int64[],
+    milestone_year = Int64[],
     errors = Vector{Float64}[],
     ldc_errors = Vector{Float64}[],
 )
@@ -55,14 +55,14 @@ df = DataFrame(DBInterface.execute(
             SUBSTRING(profile_name, 1, 2) AS location,
             rep_period, 
             timestep, 
-            year, 
+            milestone_year, 
             value
         FROM profiles_rep_periods
         WHERE 
                 value IS NOT NULL
             AND
                 NOT(LOWER(profile_name) LIKE '%hydro%')
-        ORDER BY profile_name, rep_period, year, timestep
+        ORDER BY profile_name, rep_period, milestone_year, timestep
         """
     ))
 
