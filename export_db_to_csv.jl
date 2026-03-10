@@ -2,10 +2,10 @@ using Pkg
 using DuckDB: DBInterface, DuckDB
 using DataFrames: DataFrame
 
-database_name = "obz_test.db"
+database_name = "ens_ward_k1500_perlocation_Afterwards_hp0.95_lp0.05.db"
 
 # remove .db for output directory name
-output_dir = replace(database_name, ".db" => "")
+output_dir = "inputs/" * replace(database_name, ".db" => "")
 
 connection = DBInterface.connect(DuckDB.DB, database_name)
 

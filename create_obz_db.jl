@@ -15,17 +15,13 @@ user_input_dir = "../TulipaEnergyModel.jl/docs/src/data/obz/"
 num_rep_periods = 3
 period_duration = 168
 
-config = ClusteringConfig(
-    dependant_per_location = true,
-    extreme_preservation = NoExtremePreservation,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-    )
 
-num_clusters = 1500
-    
-file_name = experiment_name(config, num_clusters)
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
+
+println("Using config: ", config)
+file_name = experiment_name(config)
 database_name = "$file_name.db"
+# database_name = "full_resolution.db"
     
 readdir(user_input_dir)
 
@@ -280,7 +276,10 @@ DuckDB.query(
         from_asset,
         to_asset,
         year AS milestone_year,
-        variable_cost AS operational_cost,
+        CASE
+            WHEN ends_with(from_asset, '_ENS') THEN 68887
+        ELSE variable_cost
+END AS operational_cost
     FROM t_flow_yearly
     ORDER by from_asset, to_asset
     "
@@ -361,7 +360,7 @@ DuckDB.query(
     ",
 )
 
-cluster_partitions!(connection, num_clusters, config)
+cluster_partitions!(connection, config)
 
 # timeframe profiles
 TulipaClustering.transform_wide_to_long!(

@@ -198,7 +198,6 @@ Base.isless(a::HeapEntry, b::HeapEntry) =
 
 function hierarchical_time_clustering_ward(
     values::Matrix{Float64},
-    n_prime::Int,
     modes::Vector{ProfileType},
     config::ClusteringConfig = ClusteringConfig(),
 )
@@ -282,7 +281,7 @@ function hierarchical_time_clustering_ward(
     end
 
     merges = 0
-    total_merges = n - n_prime
+    total_merges = n - config.n_prime
 
     # =========================
     # Merge loop
@@ -372,7 +371,7 @@ function hierarchical_time_clustering_ward(
     for c in active_clusters
 
         push!(result_partitions, c.count)
-        if config.extreme_preservation == Afterwards || config.extreme_preservation == SeperateExtremes
+        if should_update_extremes_after_clustering(config.extreme_preservation)
 
             rep_vec = [
                 getRepresentativeValue(

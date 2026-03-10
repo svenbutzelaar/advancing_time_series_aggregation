@@ -10,7 +10,6 @@ include("config.jl")
 """
     cluster_partitions!(
         conn,
-        num_clusters::Int,
         dependant_per_location::Bool,
         config::ClusteringConfig = ClusteringConfig()
     )
@@ -19,7 +18,6 @@ Runs Ward clustering on profile tables stored in DuckDB.
 """
 function cluster_partitions!(
     conn,
-    num_clusters::Int,
     config::ClusteringConfig = ClusteringConfig(),
 )
 
@@ -72,11 +70,11 @@ function cluster_partitions!(
 
     if config.dependant_per_location
         cluster_partitions_per_location!(
-            df, results, stats, num_clusters, config
+            df, results, stats, config
         )
     else
         cluster_partitions_per_profile!(
-            df, results, stats, num_clusters, config
+            df, results, stats, config
         )
     end
 
@@ -217,7 +215,6 @@ function cluster_partitions_per_profile!(
     df::DataFrame,
     results::DataFrame,
     stats::DataFrame,
-    num_clusters::Int,
     config::ClusteringConfig,
 )
 
@@ -238,7 +235,6 @@ function cluster_partitions_per_profile!(
         ward_errors,
         ldc_errors = hierarchical_time_clustering_ward(
             values,
-            num_clusters,
             [profile_type],
             config
         )
@@ -274,7 +270,6 @@ function cluster_partitions_per_location!(
     df::DataFrame,
     results::DataFrame,
     stats::DataFrame,
-    num_clusters::Int,
     config::ClusteringConfig,
 )
 
@@ -309,7 +304,6 @@ function cluster_partitions_per_location!(
         ward_errors,
         ldc_errors = hierarchical_time_clustering_ward(
             values,
-            num_clusters,
             profile_types,
             config
         )

@@ -10,15 +10,10 @@ include("../cluster/config.jl")
 # Settings
 # ----------------------------
 
-config = ClusteringConfig(
-    dependant_per_location = true,
-    extreme_preservation = SeperateExtremes,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-    )
-num_clusters = 1500
-    
-file_name = experiment_name(config, num_clusters)
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
+
+println("Using config: ", config)
+file_name = experiment_name(config)
 db_name = "$file_name.db"
 
 

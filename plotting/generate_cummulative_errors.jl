@@ -11,17 +11,12 @@ include("../cluster/config.jl")
 base_db = "obz_partitions_base.db"
 new_db  = "obz_partitions.db"
 
-num_clusters = 1500
 calc_stats = false
 
-config = ClusteringConfig(
-    calc_stats = calc_stats,
-    dependant_per_location = true,
-    extreme_preservation = SeperateExtremes,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-)
-file_name = experiment_name(config, num_clusters)
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
+
+println("Using config: ", config)
+file_name = experiment_name(config)
 
 dir = "plotting/csv_data/partitions"
 mkpath(dir)

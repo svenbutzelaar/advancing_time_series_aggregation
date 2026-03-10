@@ -1,19 +1,5 @@
 #!/usr/bin/env julia
 
-# using Pkg: Pkg
-# Pkg.activate(".")
-# Pkg.add([
-#     "TulipaIO",
-#     "TulipaEnergyModel",
-#     "TulipaClustering",
-#     "Distances",
-#     "Gurobi",
-#     "DuckDB",
-#     "DataFrames",
-#     "Plots",
-# ])
-# Pkg.instantiate()
-
 import TulipaIO as TIO
 import TulipaEnergyModel as TEM
 import TulipaClustering as TC
@@ -22,22 +8,14 @@ using DuckDB
 using DataFrames
 using Plots
 using Distances
-
-
 include("cluster/config.jl")
 
-calc_ens = true
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
-config = ClusteringConfig(
-    dependant_per_location = true,
-    extreme_preservation = SeperateExtremes,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-    )
+println("Using config: ", config)
+file_name = experiment_name(config)
 
-num_clusters = 1500
-    
-file_name = experiment_name(config, num_clusters)
+calc_ens = @isdefined(CALC_ENS) ? CALC_ENS : false
 
 if calc_ens
     file_name = "ens_" * file_name
@@ -50,13 +28,11 @@ TEM.populate_with_defaults!(connection)
 energy_problem = TEM.EnergyProblem(connection)
 TEM.create_model!(energy_problem;
     optimizer = () -> Gurobi.Optimizer(),
-    optimizer_parameters = Dict(
-        "output_flag" => true,
-        )
+    optimizer_parameters = Dict("output_flag" => true)
 )
 TEM.solve_model!(energy_problem)
 TEM.save_solution!(energy_problem; compute_duals = true)
-    
+
 output_files = "outputs-" * file_name
 isdir(output_files) || mkdir(output_files)
 TEM.export_solution_to_csv_files(output_files, energy_problem)

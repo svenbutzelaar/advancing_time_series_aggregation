@@ -5,16 +5,11 @@ include("cluster/config.jl")
 
 
 
-config = ClusteringConfig(
-    dependant_per_location = true,
-    extreme_preservation = SeperateExtremes,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-    )
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
-num_clusters = 1500
-    
-file_name = experiment_name(config, num_clusters)
+println("Using config: ", config)
+file_name = experiment_name(config)
+file_name = "full_resolution"
 
 # Connect to DuckDB (in-memory, or replace with a file DB if you want)
 connection = DBInterface.connect(DuckDB.DB)

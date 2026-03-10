@@ -37,11 +37,36 @@ plt.close()
 # -----------------------------
 # Plot 2: Cost vs True Operational Cost
 # -----------------------------
+# -----------------------------
+# Plot 2: Cost vs True Operational Cost (with ENS highlighted)
+# -----------------------------
 plt.figure(figsize=(8,5))
 width = 0.35
 x = range(len(df))
+
+# Calculate ENS cost and operational cost without ENS
+df["ens_cost"] = df["energy_not_served"] * 1000
+df["operational_cost_without_ens"] = df["true_operational_cost"] - df["ens_cost"]
+
+# Investment cost bar
 plt.bar(x, df['cost'], width=width, label='Investment Plan Cost')
-plt.bar([i+width for i in x], df['true_operational_cost'], width=width, label='True Operational Cost')
+
+# True operational cost split into two parts
+plt.bar(
+    [i+width for i in x],
+    df["operational_cost_without_ens"],
+    width=width,
+    label="Operational Cost"
+)
+
+plt.bar(
+    [i+width for i in x],
+    df["ens_cost"],
+    width=width,
+    bottom=df["operational_cost_without_ens"],
+    label="ENS Cost"
+)
+
 plt.xticks([i + width/2 for i in x], df['method'])
 plt.ylabel("Cost")
 plt.title("Investment vs True Operational Cost (#timesteps 1500)")

@@ -37,16 +37,10 @@ case_name = "local"
 
 calc_ens = true
 
-config = ClusteringConfig(
-    dependant_per_location = true,
-    extreme_preservation = SeperateExtremes,
-    high_percentile = 0.95,
-    low_percentile = 0.05,
-    )
+config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
-num_clusters = 1500
-    
-file_name = experiment_name(config, num_clusters)
+println("Using config: ", config)
+file_name = experiment_name(config)
 
 if calc_ens
     file_name = "ens_" * file_name
