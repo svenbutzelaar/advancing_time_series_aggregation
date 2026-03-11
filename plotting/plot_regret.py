@@ -6,7 +6,7 @@ from pathlib import Path
 # -----------------------------
 # Settings
 # -----------------------------
-csv_path = Path("plotting/csv_data/regret.csv")
+csv_path = Path("plotting/csv_data/regret_ens_1000.csv")
 output_dir = Path("plots")
 output_dir.mkdir(parents=True, exist_ok=True)
 

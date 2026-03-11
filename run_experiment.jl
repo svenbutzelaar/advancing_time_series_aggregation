@@ -30,7 +30,24 @@ TEM.create_model!(energy_problem;
     optimizer = () -> Gurobi.Optimizer(),
     optimizer_parameters = Dict("output_flag" => true)
 )
+
 TEM.solve_model!(energy_problem)
+
+using JuMP
+if termination_status(energy_problem.model) == MOI.INFEASIBLE
+    println("Computing IIS...")
+    compute_conflict!(energy_problem.model)
+    
+    # Print conflicting constraints
+    for (F, S) in list_of_constraint_types(energy_problem.model)
+        for con in all_constraints(energy_problem.model, F, S)
+            if MOI.get(energy_problem.model, MOI.ConstraintConflictStatus(), con) == MOI.IN_CONFLICT
+                println("Conflicting constraint: ", con)
+            end
+        end
+    end
+end
+
 TEM.save_solution!(energy_problem; compute_duals = true)
 
 output_files = "outputs/" * file_name

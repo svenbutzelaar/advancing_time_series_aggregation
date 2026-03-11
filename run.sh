@@ -7,6 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=30
 #SBATCH --mem-per-cpu=3968MB
+#SBATCH --mail-type=END,FAIL
 
 # === Load modules ===
 module load 2025
@@ -39,6 +40,12 @@ run_experiment() {
     echo "Logging to $log_file"
 
     srun julia --project cli.jl $([ "$calc_ens" = "true" ] && echo "--calc_ens") $EXTRA_ARGS "$script_name" > "$log_file" 2>&1
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED $script_name calc_ens=$calc_ens (exit code $exit_code)" >&2
+        exit $exit_code
+    fi
 
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE $script_name calc_ens=$calc_ens"
 }
@@ -50,5 +57,9 @@ run_experiment() {
 run_experiment false run_experiment.jl
 
 srun julia --project cli.jl $EXTRA_ARGS create_ens_experiment_db.jl > "$LOG_DIR/create_ens_experiment_db_${timestamp_file}.log" 2>&1
+if [ $? -ne 0 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED create_ens_experiment_db.jl (exit code $?)" >&2
+    exit $?
+fi
 
 run_experiment true run_experiment.jl

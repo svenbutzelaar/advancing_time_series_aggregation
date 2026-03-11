@@ -8,7 +8,6 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
-file_name = "full_resolution"
 
 database_name = "$file_name.db"
 
@@ -16,7 +15,7 @@ dataset_full_resolution = "obz-invest-full-resolution"
 source_db = "db_files/$(dataset_full_resolution).db"
 target_db = "db_files/ens_$(file_name).db"
 
-var_assets_investment_path  = joinpath("outputs-" * file_name, "var_assets_investment.csv")
+var_assets_investment_path  = joinpath("outputs/" * file_name, "var_assets_investment.csv")
 
 # Copy the database (overwrite if it already exists)
 cp(source_db, target_db; force = true)
