@@ -28,7 +28,7 @@ function cluster_partitions!(
         partition = String[],
         values = String[],
         mean_values = String[],
-        milestone_year = Int64[],
+        year = Int64[],
         location = String[],
     )
 
@@ -36,7 +36,7 @@ function cluster_partitions!(
         asset = String[],
         location = String[],
         rep_period = Int64[],
-        milestone_year = Int64[],
+        year = Int64[],
         errors = Vector{Float64}[],
         ldc_errors = Vector{Float64}[],
     )
@@ -53,14 +53,14 @@ function cluster_partitions!(
             SUBSTRING(profile_name, 1, 2) AS location,
             rep_period, 
             timestep, 
-            milestone_year, 
+            year, 
             value
         FROM profiles_rep_periods
         WHERE 
                 value IS NOT NULL
             AND
                 NOT(LOWER(profile_name) LIKE '%hydro%')
-        ORDER BY profile_name, rep_period, milestone_year, timestep
+        ORDER BY profile_name, rep_period, year, timestep
         """
     ))
 
@@ -103,7 +103,7 @@ function cluster_partitions!(
         WHERE
             a.asset      = r.asset
             AND a.rep_period = r.rep_period
-            AND a.milestone_year   = r.milestone_year
+            AND a.year   = r.year
         """
     )
 
@@ -116,7 +116,7 @@ function cluster_partitions!(
         FROM $tmp_table AS r
         WHERE
             f.rep_period = r.rep_period
-            AND f.milestone_year   = r.milestone_year
+            AND f.year   = r.year
             AND (
                 f.from_asset = r.asset
                 OR f.to_asset = r.asset
@@ -135,7 +135,7 @@ function update_profiles_rep_periods_with_new_values!(
     expanded_profiles = DataFrame(
         profile_name = String[],
         rep_period   = Int[],
-        milestone_year         = Int[],
+        year         = Int[],
         timestep     = Int[],
         value        = Float64[],
     )
@@ -144,7 +144,7 @@ function update_profiles_rep_periods_with_new_values!(
 
         profile_name = row.asset
         rep_period   = row.rep_period
-        milestone_year         = row.milestone_year
+        year         = row.year
 
         partitions = parse.(Int, split(row.partition, ";"))
         rep_values = parse.(Float64, split(row.values, ";"))
@@ -161,7 +161,7 @@ function update_profiles_rep_periods_with_new_values!(
                     push!(expanded_profiles, (
                         profile_name,
                         rep_period,
-                        milestone_year,
+                        year,
                         timestep_counter,
                         rep_v
                     ))
@@ -203,7 +203,7 @@ function update_profiles_rep_periods_with_new_values!(
         WHERE
             p.profile_name = t.profile_name
             AND p.rep_period = t.rep_period
-            AND p.milestone_year = t.milestone_year
+            AND p.year = t.year
             AND p.timestep = t.timestep
         """
     )
@@ -218,12 +218,12 @@ function cluster_partitions_per_profile!(
     config::ClusteringConfig,
 )
 
-    for g in groupby(df, [:profile_name, :rep_period, :milestone_year])
+    for g in groupby(df, [:profile_name, :rep_period, :year])
 
         profile_name = first(g.profile_name)
         location = first(g.location)
         rep_period = first(g.rep_period)
-        milestone_year = first(g.milestone_year)
+        year = first(g.year)
 
         values = reshape(Vector{Float64}(g.value), :, 1)
 
@@ -247,7 +247,7 @@ function cluster_partitions_per_profile!(
                 asset = profile_name,
                 location = location,
                 rep_period = rep_period,
-                milestone_year = milestone_year,
+                year = year,
                 errors = [ward_errors[s][1] for s in eachindex(ward_errors)],
                 ldc_errors = [ldc_errors[s][1] for s in eachindex(ldc_errors)],
             ))
@@ -260,7 +260,7 @@ function cluster_partitions_per_profile!(
             partition = join(partitions, ";"),
             values = join(partition_values_flat, ";"),
             mean_values = join(mean_values_flat, ";"),
-            milestone_year = milestone_year,
+            year = year,
             location = location,
         ))
     end
@@ -273,10 +273,10 @@ function cluster_partitions_per_location!(
     config::ClusteringConfig,
 )
 
-    for group_per_location in groupby(df, [:location, :rep_period, :milestone_year])
+    for group_per_location in groupby(df, [:location, :rep_period, :year])
 
         rep_period = first(group_per_location.rep_period)
-        milestone_year = first(group_per_location.milestone_year)
+        year = first(group_per_location.year)
         location = first(group_per_location.location)
 
         sort!(group_per_location, [:profile_name, :timestep])
@@ -320,7 +320,7 @@ function cluster_partitions_per_location!(
                 partition = join(partitions, ";"),
                 values = join(partition_values_per_profile, ";"),
                 mean_values = join(mean_values_per_profile, ";"),
-                milestone_year = milestone_year,
+                year = year,
                 location = location,
             ))
 
@@ -329,7 +329,7 @@ function cluster_partitions_per_location!(
                     asset = profile_name,
                     location = location,
                     rep_period = rep_period,
-                    milestone_year = milestone_year,
+                    year = year,
                     errors = [ward_errors[s][j] for s in eachindex(ward_errors)],
                     ldc_errors = [ldc_errors[s][j] for s in eachindex(ldc_errors)],
                 ))

@@ -41,13 +41,13 @@ TulipaIO.read_csv_folder(
     replace_if_exists = true,
 )
 
-TulipaClustering.transform_wide_to_long!(connection, "profiles", "pivot_profiles",exclude_columns = ["milestone_year", "timestep"])
+TulipaClustering.transform_wide_to_long!(connection, "profiles", "pivot_profiles")
 
 DuckDB.query(
     connection,
     "CREATE OR REPLACE TABLE profiles AS
     FROM pivot_profiles
-    ORDER BY profile_name, milestone_year, timestep
+    ORDER BY profile_name, year, timestep
     "
 )
 
@@ -61,11 +61,9 @@ clustering_params = (
     weight_type = :convex,
     tol = 1e-2,
 )
-layout = TulipaClustering.ProfilesTableLayout(year=:milestone_year)
+
 TulipaClustering.dummy_cluster!(
     connection,
-    layout=layout
-
 );
 DuckDB.query(connection, 
     "ALTER TABLE rep_periods_mapping
@@ -123,6 +121,8 @@ DuckDB.query(
         UNION BY NAME
         FROM assets_conversion_basic_data
         UNION BY NAME
+        FROM assets_hub_basic_data
+        UNION BY NAME
         FROM assets_producer_basic_data
         UNION BY NAME
         FROM assets_storage_basic_data
@@ -138,6 +138,8 @@ DuckDB.query(
         FROM assets_consumer_yearly_data
         UNION BY NAME
         FROM assets_conversion_yearly_data
+        UNION BY NAME
+        FROM assets_hub_yearly_data
         UNION BY NAME
         FROM assets_producer_yearly_data
         UNION BY NAME
@@ -161,8 +163,7 @@ DuckDB.query(
     CREATE TABLE asset_commission AS
     SELECT
         tay.name AS asset,
-        milestone_year,
-        milestone_year as commission_year,
+        tay.year AS commission_year,
         CASE
             WHEN LOWER(tay.name) LIKE '%wind_onshore%'  THEN 77356.32865703155
             WHEN LOWER(tay.name) LIKE '%wind_offshore%' THEN 119732.61777406993
@@ -187,7 +188,7 @@ DuckDB.query(
     "CREATE TABLE asset_milestone AS
     SELECT
         name AS asset,
-        milestone_year,
+        year AS milestone_year,
         peak_demand,
         initial_storage_level,
         storage_inflows,
@@ -213,8 +214,8 @@ DuckDB.query(
     CREATE TABLE asset_both AS
     SELECT
         tay.name AS asset,
-        tay.milestone_year,
-        tay.milestone_year as commission_year,
+        tay.year AS milestone_year,
+        tay.year AS commission_year, -- same year, different semantic meaning
         CASE
             WHEN a.investment_method = 'simple' THEN 0
             ELSE tay.initial_units
@@ -265,8 +266,7 @@ DuckDB.query(
     SELECT
         from_asset,
         to_asset,
-        milestone_year,
-        milestone_year AS commission_year,
+        year AS commission_year,
         efficiency AS producer_efficiency,
     FROM t_flow_yearly
     ORDER by from_asset, to_asset
@@ -279,7 +279,7 @@ DuckDB.query(
     SELECT
         from_asset,
         to_asset,
-        milestone_year,
+        year AS milestone_year,
         CASE
             WHEN ends_with(from_asset, '_ENS') THEN 68887
         ELSE variable_cost
@@ -295,8 +295,8 @@ DuckDB.query(
     SELECT
         t_flow_yearly.from_asset,
         t_flow_yearly.to_asset,
-        t_flow_yearly.milestone_year,
-        t_flow_yearly.milestone_year AS commission_year,
+        t_flow_yearly.year AS milestone_year,
+        t_flow_yearly.year AS commission_year,
         t_flow_yearly.initial_export_units,
         t_flow_yearly.initial_import_units,
     FROM t_flow_yearly
@@ -314,12 +314,11 @@ DuckDB.query(
       "CREATE TABLE assets_timeframe_profiles AS
       SELECT
         asset,
-        commission_year,
-        commission_year AS milestone_year,
+        commission_year AS year,
         profile_type,
         profile_name
       FROM assets_storage_min_max_reservoir_level_profiles
-      ORDER BY asset, commission_year, profile_name
+      ORDER BY asset, year, profile_name
       ",
 )
 
@@ -329,15 +328,14 @@ DuckDB.query(
     "CREATE TABLE assets_rep_periods_partitions AS
     SELECT
         t.name AS asset,
-        t.milestone_year,
-        t.milestone_year as commission_year,
+        t.year,
         t.partition::varchar(255) AS partition,
         rep_periods_data.rep_period,
         'uniform' AS specification,
     FROM t_asset_yearly AS t
     LEFT JOIN rep_periods_data
-        ON t.milestone_year = rep_periods_data.milestone_year
-    ORDER BY asset, t.milestone_year, rep_period
+        ON t.year = rep_periods_data.year
+    ORDER BY asset, t.year, rep_period
     ",
 )
 
@@ -348,8 +346,7 @@ DuckDB.query(
     SELECT
         flow.from_asset,
         flow.to_asset,
-        t_from.commission_year,
-        t_from.commission_year as milestone_year,
+        t_from.year,
         t_from.rep_period,
         'uniform' AS specification,
         IF(
@@ -362,7 +359,7 @@ DuckDB.query(
         ON flow.from_asset = t_from.asset
     LEFT JOIN assets_rep_periods_partitions AS t_to
         ON flow.to_asset = t_to.asset
-        AND t_from.commission_year = t_to.commission_year
+        AND t_from.year = t_to.year
         AND t_from.rep_period = t_to.rep_period
     ",
 )
@@ -377,7 +374,6 @@ TulipaClustering.transform_wide_to_long!(
     connection,
     "min_max_reservoir_levels",
     "pivot_min_max_reservoir_levels",
-    exclude_columns = ["milestone_year", "timestep"]
 )
 
 period_duration = clustering_params.period_duration
@@ -389,7 +385,7 @@ DuckDB.query(
     WITH cte_split_profiles AS (
         SELECT
             profile_name,
-            milestone_year ,
+            year,
             1 + (timestep - 1) // $period_duration  AS period,
             1 + (timestep - 1)  % $period_duration AS timestep,
             value,
@@ -397,17 +393,18 @@ DuckDB.query(
     )
     SELECT
         cte_split_profiles.profile_name,
-        cte_split_profiles.milestone_year,
+        cte_split_profiles.year,
+        cte_split_profiles.year AS milestone_year,
         cte_split_profiles.period,
-        AVG(cte_split_profiles.value) AS value,
+        AVG(cte_split_profiles.value) AS value, -- Computing the average aggregation
     FROM cte_split_profiles
     GROUP BY
         cte_split_profiles.profile_name,
-        cte_split_profiles.milestone_year,
+        cte_split_profiles.year,
         cte_split_profiles.period
     ORDER BY
         cte_split_profiles.profile_name,
-        cte_split_profiles.milestone_year,
+        cte_split_profiles.year,
         cte_split_profiles.period
     ",
 )
