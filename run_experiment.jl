@@ -26,10 +26,13 @@ connection = DBInterface.connect(DuckDB.DB, "db_files/$file_name.db")
 # TEM.populate_with_defaults!(connection)
 
 energy_problem = TEM.EnergyProblem(connection)
+
+time_before_solve = time()
 TEM.create_model!(energy_problem;
     optimizer = () -> Gurobi.Optimizer(),
     optimizer_parameters = Dict("output_flag" => true)
 )
+println("Time to solve for: ", file_name, time() - time_before_solve)
 
 TEM.solve_model!(energy_problem)
 
@@ -53,5 +56,7 @@ TEM.save_solution!(energy_problem; compute_duals = true)
 output_files = "outputs/" * file_name
 isdir(output_files) || mkdir(output_files)
 TEM.export_solution_to_csv_files(output_files, energy_problem)
+
+println(file_name)
 
 close(connection)

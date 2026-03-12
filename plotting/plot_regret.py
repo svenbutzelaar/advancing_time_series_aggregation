@@ -6,7 +6,7 @@ from pathlib import Path
 # -----------------------------
 # Settings
 # -----------------------------
-csv_path = Path("plotting/csv_data/regret_ens_1000.csv")
+csv_path = Path("plotting/csv_data/regret.csv")
 output_dir = Path("plots")
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -35,44 +35,46 @@ plt.savefig(output_dir / "runtime_per_method.png")
 plt.close()
 
 # -----------------------------
-# Plot 2: Cost vs True Operational Cost
+# Pre-calculate cost columns
 # -----------------------------
-# -----------------------------
-# Plot 2: Cost vs True Operational Cost (with ENS highlighted)
-# -----------------------------
-plt.figure(figsize=(8,5))
-width = 0.35
-x = range(len(df))
-
-# Calculate ENS cost and operational cost without ENS
-df["ens_cost"] = df["energy_not_served"] * 1000
+df["ens_cost"] = df["energy_not_served"] * 68887
 df["operational_cost_without_ens"] = df["true_operational_cost"] - df["ens_cost"]
 
-# Investment cost bar
-plt.bar(x, df['cost'], width=width, label='Investment Plan Cost')
 
-# True operational cost split into two parts
+
+# -----------------------------
+# Plot 2: regret
+# -----------------------------
+plt.figure(figsize=(8,5))
+width = 0.5
+x = range(len(df))
 plt.bar(
-    [i+width for i in x],
+    x,
+    df["investment_cost"],
+    width=width,
+    label="Investment Cost"
+)
+plt.bar(
+    x,
     df["operational_cost_without_ens"],
     width=width,
+    bottom=df["investment_cost"],
     label="Operational Cost"
 )
-
 plt.bar(
-    [i+width for i in x],
+    x,
     df["ens_cost"],
     width=width,
-    bottom=df["operational_cost_without_ens"],
+    bottom=df["operational_cost_without_ens"] + df["investment_cost"],
     label="ENS Cost"
 )
 
-plt.xticks([i + width/2 for i in x], df['method'])
+plt.xticks(x, df['method'])
 plt.ylabel("Cost")
-plt.title("Investment vs True Operational Cost (#timesteps 1500)")
+plt.title(f"regret (#timesteps {min(df['num_clusters'])})")
 plt.legend()
 plt.tight_layout()
-plt.savefig(output_dir / "cost_comparison.png")
+plt.savefig(output_dir / "regret.png")
 plt.close()
 
 # -----------------------------

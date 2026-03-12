@@ -7,6 +7,7 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
+# file_name = "obz-invest-full-resolution"
 database_name = "db_files/$file_name.db"
 
 # remove .db for output directory name

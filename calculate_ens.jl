@@ -9,7 +9,7 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
-file_name = "full_resolution"
+# file_name = "full_resolution" 
 
 # Connect to DuckDB (in-memory, or replace with a file DB if you want)
 connection = DBInterface.connect(DuckDB.DB)
