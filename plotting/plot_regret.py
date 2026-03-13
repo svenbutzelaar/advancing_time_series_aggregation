@@ -7,13 +7,17 @@ from pathlib import Path
 # Settings
 # -----------------------------
 csv_path = Path("plotting/csv_data/regret.csv")
-output_dir = Path("plots")
+n_prime = 1500
+output_dir = Path(f"plots/regret/{n_prime}")
 output_dir.mkdir(parents=True, exist_ok=True)
+
 
 # -----------------------------
 # Load data
 # -----------------------------
 df = pd.read_csv(csv_path)
+
+df = df[(df["num_clusters"] == 8760) |  (df["num_clusters"] == n_prime)]
 
 # Clean up method names if needed
 df['method'] = df['method'].str.strip()
@@ -87,5 +91,34 @@ plt.title("Energy Not Served per Method")
 plt.tight_layout()
 plt.savefig(output_dir / "energy_not_served.png")
 plt.close()
+
+
+
+# -----------------------------
+# Plot 4: relative regret
+# -----------------------------
+df["total_regret"] = df["ens_cost"] + df["operational_cost_without_ens"] + df["investment_cost"]
+baseline_regret = df[df["num_clusters"] == 8760]["total_regret"].values[0]
+
+df["relative_regret"] = (df["total_regret"] - baseline_regret) * 100 / baseline_regret
+
+plt.figure(figsize=(8,5))
+width = 0.5
+x = range(len(df))
+plt.bar(
+    x,
+    df["relative_regret"],
+    width=width,
+    label="relative regret"
+)
+
+plt.xticks(x, df['method'])
+plt.ylabel("Cost")
+plt.title(f"regret (#timesteps {min(df['num_clusters'])})")
+plt.legend()
+plt.tight_layout()
+plt.savefig(output_dir / "relative_regret.png")
+plt.close()
+
 
 print("Plots saved to 'plots/' directory.")
