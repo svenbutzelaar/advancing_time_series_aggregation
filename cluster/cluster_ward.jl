@@ -253,6 +253,14 @@ function hierarchical_time_clustering_ward(
     end
 
     heap = MutableBinaryMinHeap{HeapEntry}()
+    
+        function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
+            if config.extreme_preservation == SeperateExtremesSum ||config.extreme_preservation == SeperateTops
+                return get_conflict_in_extreme_count(c1, c2)
+            else
+                return 0
+            end
+        end
 
     function push_merge(c1::LinkedListNode, c2::LinkedListNode)
         if !(c1.active && c2.active)
@@ -263,15 +271,6 @@ function hierarchical_time_clustering_ward(
         conflict  = compute_conflict_value(c1, c2)
 
         push!(heap, HeapEntry(conflict, ward_crit, c1, c2))
-    end
-
-
-    function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
-        if config.extreme_preservation == SeperateExtremesSum ||config.extreme_preservation == SeperateTops
-            return get_conflict_in_extreme_count(c1, c2)
-        else
-            return 0
-        end
     end
 
     for i in 1:n-1
