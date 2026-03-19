@@ -22,6 +22,7 @@ module load julia
 base_dir="/scratch/sbutzelaar/advancing_time_series_aggregation"
 
 timestamp=$(date "+%Y%m%d_%H%M%S")
+time_start=$(date +%s)
 LOG_DIR="$base_dir/logs"
 [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR"
 
@@ -45,4 +46,9 @@ if [ $exit_code -ne 0 ]; then
     exit $exit_code
 fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE run_experiment.jl"
+time_end=$(date +%s)
+elapsed=$(( time_end - time_start ))
+elapsed_fmt=$(printf '%02dh:%02dm:%02ds' $(( elapsed/3600 )) $(( (elapsed%3600)/60 )) $(( elapsed%60 )))
+
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE run_experiment.jl — total runtime: $elapsed_fmt"
