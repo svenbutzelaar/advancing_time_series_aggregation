@@ -21,45 +21,28 @@ module load julia
 
 base_dir="/scratch/sbutzelaar/advancing_time_series_aggregation"
 
-timestamp_file=$(date "+%Y%m%d_%H%M%S")
+timestamp=$(date "+%Y%m%d_%H%M%S")
 LOG_DIR="$base_dir/logs"
 [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR"
 
-EXTRA_ARGS="$@"
+# Build a slug from the config args for use in the log filename
+config_slug=$(echo "$@" | sed 's/--//g; s/ /_/g')
+
+log_file="$LOG_DIR/run_experiment_${config_slug}_${timestamp}.log"
 
 # ================================
-# Helpers
+# Run
 # ================================
 
-run_experiment() {
-    local calc_ens=$1
-    local script_name=$2
-    local log_file="$LOG_DIR/${script_name}_calcens_${calc_ens}_${timestamp_file}.log"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] START run_experiment.jl args=$@"
+echo "Logging to $log_file"
 
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] START $script_name calc_ens=$calc_ens"
-    echo "Logging to $log_file"
+srun julia --project cli.jl "$@" run_experiment.jl > "$log_file" 2>&1
+exit_code=$?
 
-    srun julia --project cli.jl $([ "$calc_ens" = "true" ] && echo "--calc_ens") $EXTRA_ARGS "$script_name" > "$log_file" 2>&1
-    local exit_code=$?
-
-    if [ $exit_code -ne 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED $script_name calc_ens=$calc_ens (exit code $exit_code)" >&2
-        exit $exit_code
-    fi
-
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE $script_name calc_ens=$calc_ens"
-}
-
-# ================================
-# Run experiments
-# ================================
-
-run_experiment false run_experiment.jl
-
-srun julia --project cli.jl $EXTRA_ARGS create_ens_experiment_db.jl > "$LOG_DIR/create_ens_experiment_db_${timestamp_file}.log" 2>&1
-if [ $? -ne 0 ]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED create_ens_experiment_db.jl (exit code $?)" >&2
-    exit $?
+if [ $exit_code -ne 0 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED run_experiment.jl (exit code $exit_code)" >&2
+    exit $exit_code
 fi
 
-run_experiment true run_experiment.jl
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] DONE run_experiment.jl"

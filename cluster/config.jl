@@ -3,8 +3,6 @@ using ArgParse
 @enum ExtremePreservation begin
     NoExtremePreservation
     Afterwards
-    # DuringClustering
-    # SeperateExtremes
     SeperateExtremesSum
 end
 
