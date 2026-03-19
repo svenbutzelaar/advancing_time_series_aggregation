@@ -33,6 +33,9 @@ mutable struct LinkedListNode
         modes::Vector{ProfileType},
         high_thresholds::Vector{Float64},
         low_thresholds::Vector{Float64},
+        config::ClusteringConfig,
+        all_values::Matrix{Float64},
+        row::Int,
     )
         v = collect(value)
 
@@ -44,7 +47,7 @@ mutable struct LinkedListNode
             copy(v),
             1,
             copy(v),
-            getIsExtreme(value, modes, high_thresholds, low_thresholds),
+            getIsExtreme(all_values, row, modes, high_thresholds, low_thresholds, config),
             nothing,
             nothing,
             true
@@ -59,10 +62,6 @@ end
 function merge_nodes!(
     c1::LinkedListNode,
     c2::LinkedListNode,
-    modes,
-    high_thresholds,
-    low_thresholds,
-    config,
 )
 
     c1.end_index = c2.end_index
@@ -116,16 +115,14 @@ function getRepresentativeValue(
     c::LinkedListNode,
     mode::ProfileType,
     j::Int,
-    high_thresholds::Vector{Float64},
-    low_thresholds::Vector{Float64},
 )
     if mode == Demand
-        return c.max_of_values[j] >= high_thresholds[j] ?
+        return c.is_extreme[j] ?
                c.max_of_values[j] :
                c.centroid[j]
 
     elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
-        return c.min_of_values[j] <= low_thresholds[j] ?
+        return c.is_extreme[j] ?
                c.min_of_values[j] :
                c.centroid[j]
     end
@@ -134,24 +131,46 @@ function getRepresentativeValue(
 end
 
 function getIsExtreme(
-    value::AbstractVector{<:Float64},
+    values::Matrix{Float64},
+    row::Int,
     modes::Vector{ProfileType},
     high_thresholds::Vector{Float64},
     low_thresholds::Vector{Float64},
+    config::ClusteringConfig,
 )
-    result = []
+    n = size(values, 1)
+    d = size(values, 2)
+    result = Vector{Bool}(undef, d)
 
-    for (i, v) in enumerate(value)
+    for i in 1:d
+        v = values[row, i]
         mode = modes[i]
 
-        if mode == Demand
-            push!(result, v >= high_thresholds[i])
-        elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
-            push!(result, v <= low_thresholds[i])
-        else
-            push!(result, false)
-        end
+        if config.extreme_preservation == SeperateExtremesSum
+            if mode == Demand
+                result[i] = v >= high_thresholds[i]
+            elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
+                result[i] = v <= low_thresholds[i]
+            else
+                result[i] = false
+            end
 
+        elseif config.extreme_preservation == SeperateTops
+            lo = max(1, row - config.tops_window)
+            hi = min(n, row + config.tops_window)
+            window = values[lo:hi, i]
+
+            if mode == Demand
+                result[i] = v == maximum(window)
+            elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
+                result[i] = v == minimum(window)
+            else
+                result[i] = false
+            end
+
+        else
+            result[i] = false
+        end
     end
 
     return result
@@ -223,7 +242,10 @@ function hierarchical_time_clustering_ward(
     # Initialize clusters
     # -------------------------
 
-    clusters = [LinkedListNode(i, i, view(values, i, :), modes, high_thresholds, low_thresholds) for i in 1:n]
+    clusters = [
+        LinkedListNode(i, i, view(values, i, :), modes, high_thresholds, low_thresholds, config, values, i)
+        for i in 1:n
+    ]
 
     for i in 1:n-1
         clusters[i].next_node = clusters[i+1]
@@ -245,7 +267,7 @@ function hierarchical_time_clustering_ward(
 
 
     function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
-        if config.extreme_preservation == SeperateExtremesSum
+        if config.extreme_preservation == SeperateExtremesSum ||config.extreme_preservation == SeperateTops
             return get_conflict_in_extreme_count(c1, c2)
         else
             return 0
@@ -319,10 +341,6 @@ function hierarchical_time_clustering_ward(
         merge_nodes!(
             entry.c1, 
             entry.c2,
-            modes,
-            high_thresholds,
-            low_thresholds,
-            config,
         )
         merges += 1
 
@@ -354,8 +372,6 @@ function hierarchical_time_clustering_ward(
                     c,
                     modes[j],
                     j,
-                    high_thresholds,
-                    low_thresholds
                 )
                 for j in 1:d
             ]
