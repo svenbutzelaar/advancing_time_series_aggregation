@@ -3,14 +3,14 @@ using ArgParse
 @enum ExtremePreservation begin
     NoExtremePreservation
     Afterwards
-    DuringClustering
-    SeperateExtremes
+    # DuringClustering
+    # SeperateExtremes
     SeperateExtremesSum
 end
 
 const UPDATE_AFTER_CLUSTERING = (
     Afterwards,
-    SeperateExtremes,
+    # SeperateExtremes,
     SeperateExtremesSum,
 )
 

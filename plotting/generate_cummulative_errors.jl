@@ -8,15 +8,16 @@ include("../cluster/cluster_partitions.jl")
 include("../cluster/config.jl")
 
 
-base_db = "obz_partitions_base.db"
-new_db  = "obz_partitions.db"
+base_db = "db_files/base_db.db"
+new_db  = "db_files/temp.db"
 
-calc_stats = false
 
 config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 
 println("Using config: ", config)
 file_name = experiment_name(config)
+
+calc_stats = config.calc_stats
 
 dir = "plotting/csv_data/partitions"
 mkpath(dir)
@@ -34,7 +35,7 @@ results = DataFrame(
     partition = String[],
     values = String[],
     mean_values = String[],
-    milestone_year = Int64[],
+    year = Int64[],
     location = String[],
 )
 
@@ -42,7 +43,7 @@ stats = DataFrame(
     asset = String[],
     location = String[],
     rep_period = Int64[],
-    milestone_year = Int64[],
+    year = Int64[],
     errors = Vector{Float64}[],
     ldc_errors = Vector{Float64}[],
 )
@@ -55,22 +56,21 @@ df = DataFrame(DBInterface.execute(
             SUBSTRING(profile_name, 1, 2) AS location,
             rep_period, 
             timestep, 
-            milestone_year, 
+            year, 
             value
         FROM profiles_rep_periods
         WHERE 
                 value IS NOT NULL
             AND
                 NOT(LOWER(profile_name) LIKE '%hydro%')
-        ORDER BY profile_name, rep_period, milestone_year, timestep
+        ORDER BY profile_name, rep_period, year, timestep
         """
     ))
 
-    
-    cluster_partitions_per_location!(deepcopy(df), results, stats, num_clusters, config)
+    cluster_partitions_per_location!(deepcopy(df), results, stats, config)
     # for writing
     if calc_stats
-        CSV.write(partitions_output_file, results)
-    else
         CSV.write("plotting/csv_data/per_merge/$file_name.csv",stats)   
+    else
+        CSV.write(partitions_output_file, results)
     end

@@ -18,7 +18,7 @@ mutable struct LinkedListNode
 
     count::Int
 
-    centroid::Vector{Float64}
+    representative::Vector{Float64}
 
     is_extreme::Vector{Bool}
 
@@ -72,7 +72,7 @@ function merge_nodes!(
     c1.count += c2.count
     c1.is_extreme .= c1.is_extreme .|| c2.is_extreme
 
-    c1.centroid .= c1.sum_of_values ./ c1.count
+    update_representative!(c1, modes, high_thresholds, low_thresholds, config)
 
     c1.next_node = c2.next_node
 
@@ -93,7 +93,7 @@ function compute_ward_dissimilarity(
     c1::LinkedListNode,
     c2::LinkedListNode,
 )
-    diff = c1.centroid .- c2.centroid
+    diff = c1.representative .- c2.representative
     sqdist = sum(diff .* diff)
 
     return (c1.count * c2.count) / (c1.count + c2.count) * sqdist
@@ -111,6 +111,26 @@ function get_conflict_in_extreme_count(
      return sum(c1.is_extreme .!= c2.is_extreme)
 end
 
+# =========================
+# Representative value
+# =========================
+
+function update_representative!(
+    c::LinkedListNode,
+    modes::Vector{ProfileType},
+    high_thresholds::Vector{Float64},
+    low_thresholds::Vector{Float64},
+    config::ClusteringConfig,
+)
+    c.representative .= c.sum_of_values ./ c.count
+
+    if config.extreme_preservation == DuringClustering
+        for j in eachindex(c.sum_of_values)    
+            mode = modes[j]
+            c.representative[j] = getRepresentativeValue(c, mode, j, high_thresholds, low_thresholds)
+        end
+    end
+end
 
 function getRepresentativeValue(
     c::LinkedListNode,
@@ -122,15 +142,15 @@ function getRepresentativeValue(
     if mode == Demand
         return c.max_of_values[j] >= high_thresholds[j] ?
                c.max_of_values[j] :
-               c.centroid[j]
+               c.representative[j]
 
     elseif mode == Solar || mode == WindOnshore || mode == WindOffshore
         return c.min_of_values[j] <= low_thresholds[j] ?
                c.min_of_values[j] :
-               c.centroid[j]
+               c.representative[j]
     end
 
-    return c.centroid[j]
+    return c.representative[j]
 end
 
 function getIsExtreme(
@@ -245,7 +265,11 @@ function hierarchical_time_clustering_ward(
 
 
     function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
-        if config.extreme_preservation == SeperateExtremesSum
+        mode = config.extreme_preservation
+
+        if mode == SeperateExtremes
+            return min(1, get_conflict_in_extreme_count(c1, c2))
+        elseif mode == SeperateExtremesSum
             return get_conflict_in_extreme_count(c1, c2)
         else
             return 0
@@ -291,7 +315,7 @@ function hierarchical_time_clustering_ward(
                 merged_values = Float64[]
 
                 for c in active_clusters
-                    append!(merged_values, fill(c.centroid[j], c.count))
+                    append!(merged_values, fill(c.representative[j], c.count))
                 end
 
                 merged_sorted = sort(merged_values; rev=true)
@@ -361,7 +385,7 @@ function hierarchical_time_clustering_ward(
             ]
             push!(result_values, rep_vec)
         else
-            push!(result_values, c.centroid)
+            push!(result_values, c.representative)
         end
         push!(mean_values, c.sum_of_values ./ c.count)
     end

@@ -7,7 +7,7 @@ from pathlib import Path
 # Settings
 # -----------------------------
 csv_path = Path("plotting/csv_data/regret.csv")
-n_prime = 1500
+n_prime = 1000
 output_dir = Path(f"plots/regret/{n_prime}")
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -18,9 +18,12 @@ output_dir.mkdir(parents=True, exist_ok=True)
 df = pd.read_csv(csv_path)
 
 df = df[(df["num_clusters"] == 8760) |  (df["num_clusters"] == n_prime)]
+df = df[(df["method"] == "SeperateSum") |  (df["method"] == "Afterwards") |  (df["method"] == "No EP") |  (df["method"] == "base_case")]
 
 # Clean up method names if needed
 df['method'] = df['method'].str.strip()
+
+df.loc[df["method"] == "SeperateSum", "method"] = "SeperateExtremes"
 
 # -----------------------------
 # Set style
@@ -75,7 +78,7 @@ plt.bar(
 
 plt.xticks(x, df['method'])
 plt.ylabel("Cost")
-plt.title(f"regret (#timesteps {min(df['num_clusters'])})")
+plt.title(f"regret (#clusters {min(df['num_clusters'])})")
 plt.legend()
 plt.tight_layout()
 plt.savefig(output_dir / "regret.png")

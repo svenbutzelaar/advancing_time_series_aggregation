@@ -16,7 +16,13 @@ ENS_COST_PER_UNIT = 68887
 # Load & prepare data
 # -----------------------------
 df = pd.read_csv(csv_path)
-df["method"] = df["method"].str.strip()
+
+df = df[(df["method"] == "SeperateSum") |  (df["method"] == "Afterwards") |  (df["method"] == "No EP") |  (df["method"] == "base_case")]
+
+# Clean up method names if needed
+df['method'] = df['method'].str.strip()
+
+df.loc[df["method"] == "SeperateSum", "method"] = "SeperateExtremes"
 
 df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT
 df["total_cost"] = (
