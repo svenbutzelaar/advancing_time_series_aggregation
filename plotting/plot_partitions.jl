@@ -26,7 +26,7 @@ profiles = [
 
 hours = 72 * 2
 rep_period = 1      # change if needed
-milestone_year = 2050         # change if needed
+year = 2050         # change if needed
 
 # ----------------------------
 # Connect
@@ -42,7 +42,7 @@ nice_query(str) = DataFrame(DuckDB.query(connection, str))
 
 # print(nice_query("SELECT DISTINCT(asset) FROM assets_rep_periods_partitions WHERE 
 #         rep_period = $rep_period
-#         AND milestone_year = $milestone_year
+#         AND year = $year
 #         AND specification = 'explicit'
 #         AND asset IN ('NL_E_Demand',
 #                       'NL_Solar',
@@ -57,13 +57,13 @@ df = DataFrame(DBInterface.execute(
         profile_name,
         rep_period,
         timestep,
-        milestone_year,
+        year,
         value
     FROM profiles_rep_periods
     WHERE 
             value IS NOT NULL
         AND rep_period = $rep_period
-        AND milestone_year = $milestone_year
+        AND year = $year
         AND profile_name IN ('NL_E_Demand',
                              'NL_Solar',
                              'NL_Wind_Offshore',
@@ -81,13 +81,13 @@ if config.extreme_preservation != NoExtremePreservation
             profile_name,
             rep_period,
             timestep,
-            milestone_year,
+            year,
             value
         FROM profiles_rep_periods_old
         WHERE 
                 value IS NOT NULL
             AND rep_period = $rep_period
-            AND milestone_year = $milestone_year
+            AND year = $year
             AND profile_name IN ('NL_E_Demand',
                                 'NL_Solar',
                                 'NL_Wind_Offshore',
@@ -111,7 +111,7 @@ df_partitions = DataFrame(DBInterface.execute(
     FROM assets_rep_periods_partitions
     WHERE 
         rep_period = $rep_period
-        AND milestone_year = $milestone_year
+        AND year = $year
         AND specification = 'explicit'
         AND asset IN ('NL_E_Demand',
                       'NL_Solar',
