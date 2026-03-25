@@ -1,4 +1,4 @@
-function create_ens_db(config, energy_problem)
+function create_ens_db(config, energy_problem, connection)
     file_name = experiment_name(config)
     target_db = "db_files/ens_$(file_name).db"
     source_db = "db_files/obz-invest-full-resolution.db"
@@ -23,10 +23,10 @@ function create_ens_db(config, energy_problem)
 
     # Read investment solution directly from the solved model instead of CSV
     m = energy_problem.model
-    var_assets_investment = TIO.get_table(energy_problem.connection, "var_assets_investment")
+    var_assets_investment = TIO.get_table(connection, "var_assets_investment")
     solution_df = DataFrame(
         asset    = var_assets_investment.asset,
-        solution = JuMP.value.(m[:assets_investment].container),
+        solution = JuMP.value.(m[:assets_investment]),
     )
 
     # Write to a temp view and update asset_both

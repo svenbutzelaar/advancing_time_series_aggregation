@@ -7,7 +7,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=30
 #SBATCH --mem-per-cpu=3968MB
-#SBATCH --mail-type=END,FAIL
 
 # === Load modules ===
 module load 2025

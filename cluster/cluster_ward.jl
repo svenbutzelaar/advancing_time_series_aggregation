@@ -146,7 +146,7 @@ function getIsExtreme(
         v = values[row, i]
         mode = modes[i]
 
-        if config.extreme_preservation == SeperateExtremesSum
+        if config.extreme_preservation == SeperateExtremesSum || config.extreme_preservation == Afterwards
             if mode == Demand
                 result[i] = v >= high_thresholds[i]
             elseif mode == Solar || mode == WindOnshore || mode == WindOffshore

@@ -13,25 +13,30 @@ include("cluster/config.jl")
 include("cluster/cluster_partitions.jl")
 include("create_ens_experiment_db.jl")
 
-const RESULTS_CSV = "plotting/csv_data/regret.csv"
 
 config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 println("Using config: ", config)
+const RESULTS_CSV = "plotting/csv_data/regret/v2_$(experiment_name(config)).csv"
 
 # ──────────────────────────────────────────
 # Core experiment runner
 # ──────────────────────────────────────────
-function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing)
+function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing, base_connection = nothing)
+    if calc_ens && (isnothing(base_energy_problem) || isnothing(base_connection))
+    error("base_energy_problem and base_connection are required when calc_ens=true")
+    end
+
     file_name = experiment_name(config)
     if calc_ens
         file_name = "ens_" * file_name
     end
 
     timings = Dict{String, Float64}()
+    timings["t_clustering"] = 0.0
 
     # 1. Create DB + clustering
     database_name = if calc_ens
-        create_ens_db(config, base_energy_problem)
+        create_ens_db(config, base_energy_problem, base_connection)
     else
         local db = "db_files/$(experiment_name(config)).db"
         rm(db; force = true)
@@ -74,46 +79,23 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing)
         error("Model is infeasible — aborting.")
     end
 
-    # 4. Extract costs
-    m = energy_problem.model
+    # 4a. Extract costs assets
+    df_obj_assets = TIO.get_table(connection, "t_objective_assets")
+    foreach(println, names(df_obj_assets))
 
-    function get_cost(sym)
-        try
-            return JuMP.value(m[sym])
-        catch
-            return 0.0
-        end
-    end
+    cost_cols_assets = [:investment_cost, :investment_cost_storage_energy,
+                    :annualized_cost, :salvage_value]
 
-    assets_investment_cost                = get_cost(:assets_investment_cost)
-    assets_fixed_cost_compact_method      = get_cost(:assets_fixed_cost_compact_method)
-    assets_fixed_cost_simple_method       = get_cost(:assets_fixed_cost_simple_method)
-    storage_assets_energy_investment_cost = get_cost(:storage_assets_energy_investment_cost)
-    storage_assets_energy_fixed_cost      = get_cost(:storage_assets_energy_fixed_cost)
-    flows_investment_cost                 = get_cost(:flows_investment_cost)
-    flows_fixed_cost                      = get_cost(:flows_fixed_cost)
-    flows_operational_cost                = get_cost(:flows_operational_cost)
-    vintage_flows_operational_cost        = get_cost(:vintage_flows_operational_cost)
-    units_on_cost                         = get_cost(:units_on_cost)
+    costs_assets = Dict(sym => sum(df_obj_assets[!, sym]) for sym in cost_cols_assets)
 
-    total_cost = (
-        assets_investment_cost +
-        assets_fixed_cost_compact_method +
-        assets_fixed_cost_simple_method +
-        storage_assets_energy_investment_cost +
-        storage_assets_energy_fixed_cost +
-        flows_investment_cost +
-        flows_fixed_cost +
-        flows_operational_cost +
-        vintage_flows_operational_cost +
-        units_on_cost
-    )
+    # 4b. Extract costs flows
+    df_obj_flows = TIO.get_table(connection, "t_objective_flows")
+    foreach(println, names(df_obj_flows))
 
-    # 5. Save + export
-    TEM.save_solution!(energy_problem; compute_duals = true)
-    output_files = "outputs/" * file_name
-    isdir(output_files) || mkdir(output_files)
-    TEM.export_solution_to_csv_files(output_files, energy_problem)
+    cost_cols_flows = [:investment_cost, :operational_cost, :fuel_cost, 
+                        :total_variable_cost, :annualized_cost, :salvage_value]
+
+    costs_flows = Dict(sym => sum(df_obj_flows[!, sym]) for sym in cost_cols_flows)
 
     # 6. Compute ENS
     energy_not_served = 0.0
@@ -125,24 +107,15 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing)
 
     # 7. Append to results CSV
     df_row = DataFrame(
-        method                                = string(config.method),
-        num_clusters                          = config.num_clusters,
+        method                                = string(config.extreme_preservation),
+        num_clusters                          = config.n_prime,
         file_name                             = file_name,
         calc_ens                              = calc_ens,
         t_clustering                          = timings["t_clustering"],
         t_create_model                        = timings["t_create_model"],
         t_solve                               = timings["t_solve"],
-        total_cost                            = total_cost,
-        assets_investment_cost                = assets_investment_cost,
-        assets_fixed_cost_compact_method      = assets_fixed_cost_compact_method,
-        assets_fixed_cost_simple_method       = assets_fixed_cost_simple_method,
-        storage_assets_energy_investment_cost = storage_assets_energy_investment_cost,
-        storage_assets_energy_fixed_cost      = storage_assets_energy_fixed_cost,
-        flows_investment_cost                 = flows_investment_cost,
-        flows_fixed_cost                      = flows_fixed_cost,
-        flows_operational_cost                = flows_operational_cost,
-        vintage_flows_operational_cost        = vintage_flows_operational_cost,
-        units_on_cost                         = units_on_cost,
+        (Symbol(sym, :_assets) => costs_assets[sym] for sym in cost_cols_assets)...,
+        (Symbol(sym, :_flows) => costs_flows[sym] for sym in cost_cols_flows)...,
         energy_not_served                     = energy_not_served,
     )
 
@@ -159,10 +132,7 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing)
     println("Timings: ", timings)
     println("Done: $file_name")
 
-    close(connection)
-    rm(database_name; force = true)
-
-    return energy_problem
+    return energy_problem, connection
 end
 
 # ──────────────────────────────────────────
@@ -170,6 +140,6 @@ end
 # ──────────────────────────────────────────
 
 # first investment+dispatch with low resolution
-solved_energy_problem = run_experiment(config, false)
+solved_energy_problem, solved_connection = run_experiment(config, false)
 # secondly only dispatch with high resolution but investment as fixed initial units
-run_experiment(config, true; base_energy_problem = solved_energy_problem)
+_, ens_connection = run_experiment(config, true; base_energy_problem = solved_energy_problem, base_connection = solved_connection)
