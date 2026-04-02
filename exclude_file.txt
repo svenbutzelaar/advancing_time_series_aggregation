@@ -2,3 +2,5 @@ Manifest.toml
 Project.toml
 *.png
 .git/*
+outputs/*/var_flow.csv
+outputs/*/cons_*

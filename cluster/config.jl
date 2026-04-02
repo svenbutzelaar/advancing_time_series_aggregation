@@ -44,6 +44,49 @@ function experiment_name(config::ClusteringConfig)
     ], "_")
 end
 
+function get_config_from_experiment_name(name::String)::ClusteringConfig
+    parts = split(name, "_")
+    
+    # Expected format:
+    # ward_k{n_prime}_{perlocation|perprofile}_{ep_str}_hp{high_percentile}_lp{low_percentile}
+    # where ep_str is either a plain ExtremePreservation name, or "SeperateTops_w{tops_window}"
+    
+    @assert parts[1] == "ward" "Expected name to start with 'ward', got: $(parts[1])"
+    
+    # k{n_prime}
+    n_prime = parse(Int64, parts[2][2:end])  # strip leading 'k'
+    
+    # perlocation / perprofile
+    dependant_per_location = parts[3] == "perlocation"
+    
+    # hp{high_percentile} and lp{low_percentile} are always the last two parts
+    high_percentile = parse(Float64, parts[end-1][3:end])  # strip leading 'hp'
+    low_percentile  = parse(Float64, parts[end][3:end])    # strip leading 'lp'
+    
+    # Everything between index 4 and end-2 is the ep_str (1 or 2 parts)
+    ep_parts = parts[4:end-2]
+    
+    extreme_preservation, tops_window = if length(ep_parts) == 2
+        # SeperateTops_w{tops_window}
+        @assert ep_parts[1] == "SeperateTops" "Unexpected two-part ep: $(join(ep_parts, "_"))"
+        tops_window = parse(Int, ep_parts[2][2:end])  # strip leading 'w'
+        SeperateTops, tops_window
+    else
+        ep_sym = Symbol(ep_parts[1])
+        ep = getfield(@__MODULE__, ep_sym)::ExtremePreservation
+        ep, 5  # default tops_window
+    end
+    
+    return ClusteringConfig(
+        n_prime               = n_prime,
+        dependant_per_location = dependant_per_location,
+        extreme_preservation  = extreme_preservation,
+        high_percentile       = high_percentile,
+        low_percentile        = low_percentile,
+        tops_window           = tops_window,
+    )
+end
+
 function parse_cli()
 
     s = ArgParseSettings()

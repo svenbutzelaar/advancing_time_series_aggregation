@@ -97,6 +97,13 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing, b
 
     costs_flows = Dict(sym => sum(df_obj_flows[!, sym]) for sym in cost_cols_flows)
 
+    # 5. Save + export
+    TEM.save_solution!(energy_problem; compute_duals = true)
+    output_files = "outputs/" * file_name
+    isdir(output_files) || mkdir(output_files)
+    TEM.export_solution_to_csv_files(output_files, energy_problem)
+
+
     # 6. Compute ENS
     energy_not_served = 0.0
     if calc_ens
@@ -107,16 +114,22 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing, b
 
     # 7. Append to results CSV
     df_row = DataFrame(
-        method                                = string(config.extreme_preservation),
-        num_clusters                          = config.n_prime,
-        file_name                             = file_name,
-        calc_ens                              = calc_ens,
-        t_clustering                          = timings["t_clustering"],
-        t_create_model                        = timings["t_create_model"],
-        t_solve                               = timings["t_solve"],
-        (Symbol(sym, :_assets) => costs_assets[sym] for sym in cost_cols_assets)...,
-        (Symbol(sym, :_flows) => costs_flows[sym] for sym in cost_cols_flows)...,
-        energy_not_served                     = energy_not_served,
+        vcat(
+            [
+                :method            => string(config.extreme_preservation),
+                :num_clusters      => config.n_prime,
+                :file_name         => file_name,
+                :calc_ens          => calc_ens,
+                :t_clustering      => timings["t_clustering"],
+                :t_create_model    => timings["t_create_model"],
+                :t_solve           => timings["t_solve"],
+            ],
+            [Symbol(sym, :_assets) => costs_assets[sym] for sym in cost_cols_assets],
+            [Symbol(sym, :_flows)  => costs_flows[sym]  for sym in cost_cols_flows],
+            [
+                :energy_not_served => energy_not_served,
+            ]
+        )
     )
 
     if isfile(RESULTS_CSV)

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #SBATCH --job-name=fully_flexible_temporal_resolution_experiments
-#SBATCH --partition=compute
+#SBATCH --partition=compute-p1,compute-p2
 #SBATCH --account=education-eemcs-msc-cs
 #SBATCH --time=1:30:00
 #SBATCH --ntasks=1
@@ -28,7 +28,7 @@ LOG_DIR="$base_dir/logs"
 # Build a slug from the config args for use in the log filename
 config_slug=$(echo "$@" | sed 's/--//g; s/ /_/g')
 
-log_file="$LOG_DIR/run_experiment_${config_slug}_${timestamp}.log"
+log_file="$LOG_DIR/run_experiment_${timestamp}_${config_slug}.log"
 
 # ================================
 # Run

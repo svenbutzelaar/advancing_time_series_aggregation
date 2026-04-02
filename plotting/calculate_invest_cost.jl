@@ -1,4 +1,5 @@
 using CSV, DataFrames, Glob
+include("../cluster/config.jl")
 
 # Investment costs per type (cost per unit)
 const INVESTMENT_COSTS = Dict(
@@ -11,7 +12,6 @@ const INVESTMENT_COSTS = Dict(
     "Gas"           => 95000.0,
     "Nuclear"       => 950000.0,
 )
-
 const RENEWABLE_TYPES = Set(["Wind_Onshore", "Wind_Offshore", "Solar"])
 
 """
@@ -21,90 +21,108 @@ e.g. AT_Gas, BE_Wind_Onshore, BE_Wind_Offshore
 """
 function get_asset_type(asset::String)::Union{String, Nothing}
     parts = split(asset, "_")
-    # Remove country prefix (first part), rejoin the rest
-    if length(parts) < 2
-        return nothing
-    end
-    type_parts = parts[2:end]
-    type_str = join(type_parts, "_")
-
-    for key in keys(INVESTMENT_COSTS)
-        if type_str == key
-            return key
-        end
-    end
-    return nothing
+    length(parts) < 2 && return nothing
+    type_str = join(parts[2:end], "_")
+    return haskey(INVESTMENT_COSTS, type_str) ? type_str : nothing
 end
 
 """
-Calculate total and renewable investment costs for a single experiment CSV file.
+Calculate investment costs per technology for a single experiment CSV file.
+Returns a Dict mapping asset_type => investment_cost.
 """
-function calculate_costs(filepath::String)
+function calculate_costs_per_technology(filepath::String)::Dict{String, Float64}
     df = CSV.read(filepath, DataFrame)
-
-    total_cost = 0.0
-    renewable_cost = 0.0
-
+    costs = Dict{String, Float64}()
     for row in eachrow(df)
         asset_type = get_asset_type(String(row.asset))
         if asset_type === nothing
             @warn "Unknown asset type for: $(row.asset) — skipping"
             continue
         end
-
-        cost_per_unit = INVESTMENT_COSTS[asset_type]
-        investment = cost_per_unit * row.solution
-
-        total_cost += investment
-        if asset_type in RENEWABLE_TYPES
-            renewable_cost += investment
-        end
+        costs[asset_type] = get(costs, asset_type, 0.0) + INVESTMENT_COSTS[asset_type] * row.solution
     end
-
-    return total_cost, renewable_cost
+    return costs
 end
 
 # ── Main ────────────────────────────────────────────────────────────────────
-
 csv_files = glob("outputs/*/var_assets_investment.csv")
-
 if isempty(csv_files)
     println("No files found matching outputs/*/var_assets_investment.csv")
     exit(1)
 end
 
+# Collect all rows first so we know the full set of technology columns
+all_rows = []
+for filepath in sort(csv_files)
+    exp_name = splitpath(filepath)[2]   # outputs/<experiment_name>/var_assets_investment.csv
+    config   = get_config_from_experiment_name(exp_name)
+    costs    = calculate_costs_per_technology(filepath)
+
+    total_cost     = sum(values(costs))
+    renewable_cost = sum(get(costs, t, 0.0) for t in RENEWABLE_TYPES)
+
+    println("Experiment : $exp_name")
+    println("  method        : $(config.extreme_preservation)")
+    println("  num_clusters  : $(config.n_prime)")
+    println("  Total investment cost     : $(round(total_cost;     digits=2))")
+    println("  Renewable investment cost : $(round(renewable_cost; digits=2))")
+    for (tech, cost) in sort(collect(costs))
+        println("    $tech : $(round(cost; digits=2))")
+    end
+    println()
+
+    push!(all_rows, (
+        experiment_name            = exp_name,
+        method                     = string(config.extreme_preservation),
+        num_clusters               = config.n_prime,
+        dependant_per_location     = config.dependant_per_location,
+        high_percentile            = config.high_percentile,
+        low_percentile             = config.low_percentile,
+        tops_window                = config.tops_window,
+        investment_cost            = total_cost,
+        investment_cost_renewables = renewable_cost,
+        technology_costs           = costs,
+    ))
+end
+
+# ── Build wide DataFrame with one column per technology ──────────────────────
+all_techs = sort(collect(keys(INVESTMENT_COSTS)))  # stable, deterministic column order
+
 results = DataFrame(
-    experiment_name          = String[],
-    investment_cost          = Float64[],
+    experiment_name            = String[],
+    method                     = String[],
+    num_clusters               = Int[],
+    dependant_per_location     = Bool[],
+    high_percentile            = Float64[],
+    low_percentile             = Float64[],
+    tops_window                = Int[],
+    investment_cost            = Float64[],
     investment_cost_renewables = Float64[],
 )
 
-println("="^60)
-println("Investment Cost Summary per Experiment")
-println("="^60)
-
-for filepath in sort(csv_files)
-    # Extract experiment name from path: outputs/<experiment_name>/var_assets_investment.csv
-    parts = splitpath(filepath)
-    experiment_name = parts[2]   # index 1 = "outputs", index 2 = experiment name
-
-    total_cost, renewable_cost = calculate_costs(filepath)
-
-    println("Experiment : $experiment_name")
-    println("  Total investment cost     : $(round(total_cost; digits=2))")
-    println("  Renewable investment cost : $(round(renewable_cost; digits=2))")
-    println()
-
-    push!(results, (experiment_name, total_cost, renewable_cost))
+# Add technology columns separately
+for t in all_techs
+    results[!, Symbol("cost_", t)] = Float64[]
 end
 
-println("="^60)
+for row in all_rows
+    push!(results, (
+        row.experiment_name,
+        row.method,
+        row.num_clusters,
+        row.dependant_per_location,
+        row.high_percentile,
+        row.low_percentile,
+        row.tops_window,
+        row.investment_cost,
+        row.investment_cost_renewables,
+        (get(row.technology_costs, t, 0.0) for t in all_techs)...,
+    ))
+end
 
 # ── Save CSV ─────────────────────────────────────────────────────────────────
-
-output_dir = "plotting/csv_data"
+output_dir  = "plotting/csv_data"
 mkpath(output_dir)
 output_path = joinpath(output_dir, "investment_costs_summary.csv")
 CSV.write(output_path, results)
-
 println("Results saved to: $output_path")
