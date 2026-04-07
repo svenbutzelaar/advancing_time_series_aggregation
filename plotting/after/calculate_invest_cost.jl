@@ -14,6 +14,12 @@ const INVESTMENT_COSTS = Dict(
 )
 const RENEWABLE_TYPES = Set(["Wind_Onshore", "Wind_Offshore", "Solar"])
 
+# Load asset capacities from the reference CSV
+const ASSET_CAPACITY = let
+    asset_df = CSV.read("inputs/db_files/obz-invest-full-resolution/asset.csv", DataFrame)
+    Dict(String(row.asset) => Float64(row.capacity) for row in eachrow(asset_df))
+end
+
 """
 Determine the asset type from the asset name string.
 Asset names follow the pattern: COUNTRY_Type or COUNTRY_Type_Subtype
@@ -27,21 +33,28 @@ function get_asset_type(asset::String)::Union{String, Nothing}
 end
 
 """
-Calculate investment costs per technology for a single experiment CSV file.
-Returns a Dict mapping asset_type => investment_cost.
+Calculate investment costs and total capacity per technology for a single experiment CSV file.
+Returns two Dicts mapping asset_type => investment_cost and asset_type => capacity.
 """
-function calculate_costs_per_technology(filepath::String)::Dict{String, Float64}
+function calculate_costs_and_capacity_per_technology(filepath::String)
     df = CSV.read(filepath, DataFrame)
-    costs = Dict{String, Float64}()
+    costs      = Dict{String, Float64}()
+    capacities = Dict{String, Float64}()
     for row in eachrow(df)
-        asset_type = get_asset_type(String(row.asset))
+        asset_name = String(row.asset)
+        asset_type = get_asset_type(asset_name)
         if asset_type === nothing
-            @warn "Unknown asset type for: $(row.asset) — skipping"
+            @warn "Unknown asset type for: $asset_name — skipping"
             continue
         end
-        costs[asset_type] = get(costs, asset_type, 0.0) + INVESTMENT_COSTS[asset_type] * row.solution
+        unit_capacity = get(ASSET_CAPACITY, asset_name, 0.0)
+        if unit_capacity == 0.0 && !haskey(ASSET_CAPACITY, asset_name)
+            @warn "No capacity found for asset: $asset_name — capacity will be 0"
+        end
+        costs[asset_type]      = get(costs,      asset_type, 0.0) + INVESTMENT_COSTS[asset_type] * row.solution * unit_capacity
+        capacities[asset_type] = get(capacities, asset_type, 0.0) + unit_capacity * row.solution
     end
-    return costs
+    return costs, capacities
 end
 
 # ── Main ────────────────────────────────────────────────────────────────────
@@ -54,20 +67,24 @@ end
 # Collect all rows first so we know the full set of technology columns
 all_rows = []
 for filepath in sort(csv_files)
-    exp_name = splitpath(filepath)[2]   # outputs/<experiment_name>/var_assets_investment.csv
-    config   = get_config_from_experiment_name(exp_name)
-    costs    = calculate_costs_per_technology(filepath)
+    exp_name   = splitpath(filepath)[2]
+    config     = get_config_from_experiment_name(exp_name)
+    costs, capacities = calculate_costs_and_capacity_per_technology(filepath)
 
     total_cost     = sum(values(costs))
     renewable_cost = sum(get(costs, t, 0.0) for t in RENEWABLE_TYPES)
+    total_capacity     = sum(values(capacities))
+    renewable_capacity = sum(get(capacities, t, 0.0) for t in RENEWABLE_TYPES)
 
     println("Experiment : $exp_name")
     println("  method        : $(config.extreme_preservation)")
     println("  num_clusters  : $(config.n_prime)")
-    println("  Total investment cost     : $(round(total_cost;     digits=2))")
-    println("  Renewable investment cost : $(round(renewable_cost; digits=2))")
-    for (tech, cost) in sort(collect(costs))
-        println("    $tech : $(round(cost; digits=2))")
+    println("  Total investment cost     : $(round(total_cost;         digits=2))")
+    println("  Renewable investment cost : $(round(renewable_cost;     digits=2))")
+    println("  Total capacity            : $(round(total_capacity;     digits=2))")
+    println("  Renewable capacity        : $(round(renewable_capacity; digits=2))")
+    for t in sort(collect(keys(costs)))
+        println("    $t : cost=$(round(costs[t]; digits=2))  capacity=$(round(get(capacities, t, 0.0); digits=2))")
     end
     println()
 
@@ -81,7 +98,10 @@ for filepath in sort(csv_files)
         tops_window                = config.tops_window,
         investment_cost            = total_cost,
         investment_cost_renewables = renewable_cost,
+        total_capacity             = total_capacity,
+        renewables_capacity        = renewable_capacity,
         technology_costs           = costs,
+        technology_capacities      = capacities,
     ))
 end
 
@@ -98,11 +118,15 @@ results = DataFrame(
     tops_window                = Int[],
     investment_cost            = Float64[],
     investment_cost_renewables = Float64[],
+    total_capacity             = Float64[],
+    renewables_capacity        = Float64[],
 )
 
-# Add technology columns separately
 for t in all_techs
     results[!, Symbol("cost_", t)] = Float64[]
+end
+for t in all_techs
+    results[!, Symbol("capacity_", t)] = Float64[]
 end
 
 for row in all_rows
@@ -116,7 +140,10 @@ for row in all_rows
         row.tops_window,
         row.investment_cost,
         row.investment_cost_renewables,
-        (get(row.technology_costs, t, 0.0) for t in all_techs)...,
+        row.total_capacity,
+        row.renewables_capacity,
+        (get(row.technology_costs,      t, 0.0) for t in all_techs)...,
+        (get(row.technology_capacities, t, 0.0) for t in all_techs)...,
     ))
 end
 

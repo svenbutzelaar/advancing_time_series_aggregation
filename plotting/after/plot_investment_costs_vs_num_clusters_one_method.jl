@@ -1,4 +1,4 @@
-using CSV, DataFrames, Plots
+using CSV, DataFrames, Plots, StatsPlots
 
 # ── Load data ────────────────────────────────────────────────────────────────
 input_path = "plotting/csv_data/investment_costs_summary.csv"
@@ -31,21 +31,17 @@ if nrow(df_filtered) == 0
 end
 
 # ── Identify technology cost columns ─────────────────────────────────────────
-tech_cols  = filter(c -> startswith(c, "cost_"), names(df_filtered))
+tech_cols = filter(c -> startswith(string(c), "cost_"), names(df_filtered))
 tech_labels = replace.(tech_cols, "cost_" => "")
 
-# ── Build matrix: (n_experiments × n_techs), scaled to billions ──────────────
-x_labels    = string.(df_filtered.num_clusters)   # categorical string labels
-cost_matrix = Matrix(df_filtered[:, tech_cols]) ./ 1e6   # scale to millions
+# ── Build matrix: rows = num_clusters, cols = technologies ───────────────────
+x_vals = df_filtered.num_clusters                          # Vector of x tick values
+cost_matrix = Matrix(df_filtered[:, tech_cols])            # (n_experiments × n_techs)
 
-# Drop technologies with all-zero costs (keeps the legend clean)
-nonzero_mask  = vec(any(cost_matrix .!= 0, dims=1))
-cost_matrix   = cost_matrix[:, nonzero_mask]
-tech_labels   = tech_labels[nonzero_mask]
+# Convert to billions for readability
+cost_matrix_bn = cost_matrix ./ 1e9
 
-n_experiments, n_techs = size(cost_matrix)
-
-# ── Colour palette ────────────────────────────────────────────────────────────
+# ── Colour palette: one colour per technology ─────────────────────────────────
 tech_colors = Dict(
     "Battery"       => colorant"#f4a261",
     "Coal"          => colorant"#6d6875",
@@ -56,35 +52,26 @@ tech_colors = Dict(
     "Wind_Offshore" => colorant"#118ab2",
     "Wind_Onshore"  => colorant"#06d6a0",
 )
+palette = [get(tech_colors, t, colorant"grey") for t in tech_labels]
 
-# ── Build stacked bar plot manually ──────────────────────────────────────────
-x_positions = 1:n_experiments
-p = plot(
-    size        = (900, 550),
-    dpi         = 150,
-    xlabel      = "Number of clusters",
-    ylabel      = "Investment cost (million €)",
-    title       = "Investment costs by technology\nmethod: $chosen_method",
-    legend      = :topright,
-    xticks      = (x_positions, x_labels),
-    margin      = 8Plots.mm,
-    bar_width   = 0.7,
+# ── Plot ──────────────────────────────────────────────────────────────────────
+p = groupedbar(
+    x_vals,
+    cost_matrix_bn;
+    bar_position = :stack,
+    label        = reshape(tech_labels, 1, :),
+    color        = reshape(palette, 1, :),
+    xlabel       = "Number of clusters",
+    ylabel       = "Investment cost (billion €)",
+    title        = "Investment costs by technology\nmethod: $chosen_method",
+    legend       = :topright,
+    size         = (900, 550),
+    dpi          = 150,
+    xticks       = (1:length(x_vals), string.(x_vals)),
+    bar_width    = 0.7,
+    linewidth    = 0,
+    margin       = 8Plots.mm,
 )
-
-bottoms = zeros(n_experiments)
-for (i, tech) in enumerate(tech_labels)
-    values = cost_matrix[:, i]
-    bar!(
-        p,
-        x_positions,
-        values;
-        bottom    = bottoms,
-        label     = tech,
-        color     = get(tech_colors, tech, colorant"grey"),
-        linewidth = 0,
-    )
-    bottoms .+= values
-end
 
 # ── Save ──────────────────────────────────────────────────────────────────────
 output_dir  = "plotting/figures"

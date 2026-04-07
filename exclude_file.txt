@@ -4,3 +4,4 @@ Project.toml
 .git/*
 outputs/*/var_flow.csv
 outputs/*/cons_*
+db_files/*

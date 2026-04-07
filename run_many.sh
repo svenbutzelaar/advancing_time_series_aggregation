@@ -3,7 +3,11 @@
 # -------------------------------
 # NoExtremePreservation: step 1000
 # -------------------------------
-for n in $(seq 1000 1000 8760)
+for n in $(seq 2000 1000 8760)
+do
+    sbatch run.sh --n_prime=$n --extreme_preservation=NoExtremePreservation
+done
+for n in $(seq 100 100 2000)
 do
     sbatch run.sh --n_prime=$n --extreme_preservation=NoExtremePreservation
 done
