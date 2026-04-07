@@ -18,12 +18,12 @@ output_dir.mkdir(parents=True, exist_ok=True)
 df = pd.read_csv(csv_path)
 
 df = df[(df["num_clusters"] == 8760) |  (df["num_clusters"] == n_prime)]
-df = df[(df["method"] == "SeperateSum") |  (df["method"] == "Afterwards") |  (df["method"] == "No EP") |  (df["method"] == "base_case")]
+df = df[(df["method"] == "SeperateExtremesSum") |  (df["method"] == "Afterwards") |  (df["method"] == "NoExtremePreservation") |  (df["method"] == "base_case")]
 
 # Clean up method names if needed
 df['method'] = df['method'].str.strip()
 
-df.loc[df["method"] == "SeperateSum", "method"] = "SeperateExtremes"
+df.loc[df["method"] == "SeperateExtremesSum", "method"] = "SeperateExtremes"
 
 # -----------------------------
 # Set style

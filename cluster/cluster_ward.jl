@@ -279,6 +279,7 @@ function hierarchical_time_clustering_ward(
 
     merges = 0
     total_merges = n - config.n_prime
+    num_extremes = 0
 
     # =========================
     # Merge loop
@@ -299,6 +300,10 @@ function hierarchical_time_clustering_ward(
         # -------------------------
         # Optional statistics
         # -------------------------
+        # if entry.conflict_in_extreme == 1 && num_extremes == 0
+        #     println(8760 - merges)
+        #     num_extremes = entry.conflict_in_extreme
+        # end
 
         if config.calc_stats
 

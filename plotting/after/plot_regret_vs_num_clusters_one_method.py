@@ -18,7 +18,7 @@ ENS_COST_PER_UNIT = 68887
 df = pd.read_csv(csv_path)
 
 # Filter to SeperateSum only
-df = df[df["method"].str.strip() == "SeperateSum"].copy()
+df = df[df["method"].str.strip() == "SeperateExtremesSum"].copy()
 
 # Cost components
 df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT

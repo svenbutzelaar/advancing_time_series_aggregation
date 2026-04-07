@@ -17,12 +17,12 @@ ENS_COST_PER_UNIT = 68887
 # -----------------------------
 df = pd.read_csv(csv_path)
 
-df = df[(df["method"] == "SeperateSum") |  (df["method"] == "Afterwards") |  (df["method"] == "No EP") |  (df["method"] == "base_case")]
+df = df[(df["method"] == "SeperateExtremesSum") |  (df["method"] == "Afterwards") |  (df["method"] == "NoExtremePreservation") |  (df["method"] == "base_case")]
 
 # Clean up method names if needed
 df['method'] = df['method'].str.strip()
 
-df.loc[df["method"] == "SeperateSum", "method"] = "SeperateExtremes"
+df.loc[df["method"] == "SeperateExtremesSum", "method"] = "SeperateExtremes"
 
 df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT
 df["total_cost"] = (
@@ -52,19 +52,20 @@ df["relative_regret"] = (df["total_regret"] - baseline_value) * 100 / baseline_v
 plot_df = df[df["num_clusters"] != 8760].copy()
 
 methods = sorted(plot_df["method"].unique())
-x_vals = sorted(plot_df["num_clusters"].unique())
+# x_vals = sorted(plot_df["num_clusters"].unique())
+x_vals = list(range(0, 8760, 1000))
 
 # Colour palette — one colour per method
 colors = plt.cm.tab10.colors
 method_colors = {m: colors[i % len(colors)] for i, m in enumerate(methods)}
 
-no_ep = "No EP"
+no_ep = "NoExtremePreservation"
 other_methods = [m for m in methods if m != no_ep]
 
 # -----------------------------
 # Figure: two-panel layout
-# Main panel  — all methods except No EP
-# Inset panel — all methods including No EP (log scale)
+# Main panel  — all methods except NoExtremePreservation
+# Inset panel — all methods including NoExtremePreservation (log scale)
 # -----------------------------
 fig, (ax_main, ax_log) = plt.subplots(
     1, 2,
@@ -88,7 +89,7 @@ for method in other_methods:
 ax_main.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
 ax_main.set_xlabel("Number of clusters", fontsize=12)
 ax_main.set_ylabel("Relative regret vs. baseline (%)", fontsize=12)
-ax_main.set_title("Relative regret — excluding No EP", fontsize=13, fontweight="bold")
+ax_main.set_title("Relative regret — excluding NoExtremePreservation", fontsize=13, fontweight="bold")
 ax_main.set_xticks(x_vals)
 ax_main.legend(title="Method", fontsize=10)
 ax_main.grid(True, alpha=0.3)
