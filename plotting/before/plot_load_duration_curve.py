@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-num_clusters = 1000
+num_clusters = 1500
 extreme_preservation = True
 Path("plots/load_duration_curve").mkdir(parents=True, exist_ok=True)
 
 # --- Load CSVs ---
-filename = f"ward_k{num_clusters}_perlocation_SeperateTops_w5_hp0.95_lp0.05"
+filename = f"ward_k{num_clusters}_demandoveravailabilities_NoExtremePreservation_hp0.95_lp0.05"
 df = pd.read_csv(f"plotting/csv_data/partitions/{filename}.csv")
 df_full_resolution = pd.read_csv(f"plotting/csv_data/partitions/8760.csv")
 

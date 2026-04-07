@@ -4,7 +4,7 @@ using Statistics
 using DuckDB: DBInterface, DuckDB
 using FilePathsBase
 using Printf
-include("../cluster/config.jl")
+include("../../cluster/config.jl")
 
 # ----------------------------
 # Settings

@@ -1,5 +1,5 @@
 using CSV, DataFrames, Glob
-include("../cluster/config.jl")
+include("../../cluster/config.jl")
 
 # Investment costs per type (cost per unit)
 const INVESTMENT_COSTS = Dict(
@@ -92,7 +92,7 @@ for filepath in sort(csv_files)
         experiment_name            = exp_name,
         method                     = string(config.extreme_preservation),
         num_clusters               = config.n_prime,
-        dependant_per_location     = config.dependant_per_location,
+        clustering_method     = config.clustering_method,
         high_percentile            = config.high_percentile,
         low_percentile             = config.low_percentile,
         tops_window                = config.tops_window,
@@ -112,7 +112,7 @@ results = DataFrame(
     experiment_name            = String[],
     method                     = String[],
     num_clusters               = Int[],
-    dependant_per_location     = Bool[],
+    clustering_method          = String[],
     high_percentile            = Float64[],
     low_percentile             = Float64[],
     tops_window                = Int[],
@@ -134,7 +134,7 @@ for row in all_rows
         row.experiment_name,
         row.method,
         row.num_clusters,
-        row.dependant_per_location,
+        row.clustering_method,
         row.high_percentile,
         row.low_percentile,
         row.tops_window,

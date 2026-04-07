@@ -5,12 +5,13 @@ function main()
     args = parse_cli()
 
     ep = getfield(Main, Symbol(args["extreme_preservation"]))::ExtremePreservation
+    cm = getfield(Main, Symbol(args["clustering_method"]))::ClusteringMethod
 
     config = ClusteringConfig(
         calc_stats = args["calc_stats"],
         n_prime = args["n_prime"],
         extreme_preservation = ep,
-        dependant_per_location = args["dependant_per_location"],
+        clustering_method = cm,
         high_percentile = args["high_percentile"],
         low_percentile = args["low_percentile"],
     )

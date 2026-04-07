@@ -10,7 +10,6 @@ include("config.jl")
 """
     cluster_partitions!(
         conn,
-        dependant_per_location::Bool,
         config::ClusteringConfig = ClusteringConfig()
     )
 
@@ -68,14 +67,22 @@ function cluster_partitions!(
     # CLUSTERING
     # =========================
 
-    if config.dependant_per_location
+    if config.clustering_method == PerLocation
         cluster_partitions_per_location!(
             df, results, stats, config
         )
-    else
+    elseif config.clustering_method == PerProfile
         cluster_partitions_per_profile!(
             df, results, stats, config
         )
+    elseif config.clustering_method == DemandOverAvailabilities
+        @assert config.extreme_preservation == NoExtremePreservation "Currently DemandOverAvailabilities is only available without extreme preservation"
+        cluster_partitions_demand_over_availabilities!(
+            df, results, stats, config
+        )
+    else
+        println("No valid config.clustering_method: ", config.clustering_method)
+        exit(1)
     end
 
     # =========================
@@ -332,6 +339,114 @@ function cluster_partitions_per_location!(
                     year = year,
                     errors = [ward_errors[s][j] for s in eachindex(ward_errors)],
                     ldc_errors = [ldc_errors[s][j] for s in eachindex(ldc_errors)],
+                ))
+            end
+        end
+    end
+end
+
+
+function cluster_partitions_demand_over_availabilities!(
+    df::DataFrame,
+    results::DataFrame,
+    stats::DataFrame,
+    config::ClusteringConfig,
+)
+
+    for group_per_location in groupby(df, [:location, :rep_period, :year])
+
+        rep_period = first(group_per_location.rep_period)
+        year       = first(group_per_location.year)
+        location   = first(group_per_location.location)
+
+        sort!(group_per_location, [:profile_name, :timestep])
+
+        profiles  = unique(group_per_location.profile_name)
+        timesteps = unique(group_per_location.timestep)
+        n_t       = length(timesteps)
+
+        # ── Build a name → column-vector lookup ──────────────────────────────
+        profile_series = Dict{String, Vector{Float64}}()
+        for profile in profiles
+            sub = group_per_location[group_per_location.profile_name .== profile, :]
+            profile_series[profile] = sub.value
+        end
+
+        # ── Identify profiles by type ─────────────────────────────────────────
+        by_type = Dict{ProfileType, Vector{String}}(
+            Demand       => String[],
+            Solar        => String[],
+            WindOnshore  => String[],
+            WindOffshore => String[],
+            Unknown      => String[],
+        )
+        for p in profiles
+            push!(by_type[getProfileType(p)], p)
+        end
+
+        # ── Build composite signal: Demand / (sum of available renewables) ────
+        demand_sum = foldl(
+            (acc, p) -> acc .+ profile_series[p],
+            by_type[Demand];
+            init = zeros(Float64, n_t)
+        )
+
+        avail_sum = foldl(
+            (acc, p) -> acc .+ profile_series[p],
+            (p for type in (Solar, WindOnshore, WindOffshore) for p in by_type[type]);
+            init = fill(1e-6, n_t)
+        )
+
+        composite_matrix = reshape(demand_sum ./ avail_sum, :, 1)
+
+        partitions,
+        _,
+        _,
+        ward_errors,
+        ldc_errors = hierarchical_time_clustering_ward(
+            composite_matrix,
+            [Demand],
+            config
+        )
+
+        # ── Write results for every profile in this location ─────────────────
+        for profile_name in profiles
+
+            series = profile_series[profile_name]
+
+            block_means = map(Iterators.accumulate(+, partitions)) do stop
+                start = stop - partitions[findfirst(==(stop), Iterators.accumulate(+, partitions) |> collect)] + 1
+                mean(series[start:stop])
+            end
+
+            timestep_cursor = 1
+            block_means = Float64[]
+            for p in partitions
+                push!(block_means, mean(series[timestep_cursor : timestep_cursor + p - 1]))
+                timestep_cursor += p
+            end
+
+            mean_str = join(block_means, ";")
+
+            push!(results, (
+                asset         = profile_name,
+                rep_period    = rep_period,
+                specification = "explicit",
+                partition     = join(partitions, ";"),
+                values        = mean_str,
+                mean_values   = mean_str,
+                year          = year,
+                location      = location,
+            ))
+
+            if config.calc_stats
+                push!(stats, (
+                    asset      = profile_name,
+                    location   = location,
+                    rep_period = rep_period,
+                    year       = year,
+                    errors     = [ward_errors[s][1] for s in eachindex(ward_errors)],
+                    ldc_errors = [ldc_errors[s][1] for s in eachindex(ldc_errors)],
                 ))
             end
         end

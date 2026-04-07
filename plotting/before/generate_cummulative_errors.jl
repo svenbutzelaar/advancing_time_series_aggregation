@@ -3,9 +3,9 @@ using DuckDB: DBInterface, DuckDB
 using DataFrames: DataFrame
 using CSV
 
-include("../cluster/cluster_ward.jl")
-include("../cluster/cluster_partitions.jl")
-include("../cluster/config.jl")
+include("../../cluster/cluster_ward.jl")
+include("../../cluster/cluster_partitions.jl")
+include("../../cluster/config.jl")
 
 
 base_db = "db_files/base_db.db"

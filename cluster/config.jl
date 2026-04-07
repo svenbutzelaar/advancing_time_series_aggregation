@@ -7,6 +7,14 @@ using ArgParse
     SeperateTops
 end
 
+
+@enum ClusteringMethod begin
+    UTR
+    PerLocation
+    PerProfile
+    DemandOverAvailabilities
+end
+
 const UPDATE_AFTER_CLUSTERING = (
     Afterwards,
     # SeperateExtremes,
@@ -21,7 +29,7 @@ Base.@kwdef struct ClusteringConfig
     calc_stats::Bool = false
     n_prime::Int64 = 8760
     extreme_preservation::ExtremePreservation = NoExtremePreservation
-    dependant_per_location::Bool = true
+    clustering_method::ClusteringMethod = PerLocation
     high_percentile::Float64 = 0.95
     low_percentile::Float64 = 0.05
     tops_window::Int = 5
@@ -37,7 +45,7 @@ function experiment_name(config::ClusteringConfig)
     return join([
         "ward",
         "k$(config.n_prime)",
-        config.dependant_per_location ? "perlocation" : "perprofile",
+        lowercase(String(Symbol(config.clustering_method))),
         ep_str,
         "hp$(round(config.high_percentile, digits=2))",
         "lp$(round(config.low_percentile, digits=2))",
@@ -48,7 +56,7 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
     parts = split(name, "_")
     
     # Expected format:
-    # ward_k{n_prime}_{perlocation|perprofile}_{ep_str}_hp{high_percentile}_lp{low_percentile}
+    # ward_k{n_prime}_{clustering_method}_{ep_str}_hp{high_percentile}_lp{low_percentile}
     # where ep_str is either a plain ExtremePreservation name, or "SeperateTops_w{tops_window}"
     
     @assert parts[1] == "ward" "Expected name to start with 'ward', got: $(parts[1])"
@@ -56,8 +64,13 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
     # k{n_prime}
     n_prime = parse(Int64, parts[2][2:end])  # strip leading 'k'
     
-    # perlocation / perprofile
-    dependant_per_location = parts[3] == "perlocation"
+    # clustering_method (stored as lowercase in experiment_name)
+    clustering_method_str = parts[3]
+    clustering_method = let
+        match = findfirst(m -> lowercase(string(m)) == clustering_method_str, instances(ClusteringMethod))
+        @assert !isnothing(match) "Unknown clustering method: $clustering_method_str"
+        match
+    end
     
     # hp{high_percentile} and lp{low_percentile} are always the last two parts
     high_percentile = parse(Float64, parts[end-1][3:end])  # strip leading 'hp'
@@ -78,12 +91,12 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
     end
     
     return ClusteringConfig(
-        n_prime               = n_prime,
-        dependant_per_location = dependant_per_location,
-        extreme_preservation  = extreme_preservation,
-        high_percentile       = high_percentile,
-        low_percentile        = low_percentile,
-        tops_window           = tops_window,
+        n_prime              = n_prime,
+        clustering_method    = clustering_method,
+        extreme_preservation = extreme_preservation,
+        high_percentile      = high_percentile,
+        low_percentile       = low_percentile,
+        tops_window          = tops_window,
     )
 end
 
@@ -110,9 +123,9 @@ function parse_cli()
             arg_type = String
             default = "NoExtremePreservation"
 
-        "--dependant_per_location"
-            arg_type = Bool
-            default = true
+        "--clustering_method"
+            arg_type = String
+            default = "PerLocation"
 
         "--high_percentile"
             arg_type = Float64

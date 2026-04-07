@@ -36,7 +36,7 @@ do
     sbatch run.sh \
         --n_prime=$n \
         --extreme_preservation=SeperateExtremesSum \
-        --dependant_per_location=false
+        --clustering_method=PerProfile
 done
 
 sbatch run.sh --n_prime=8760 --extreme_preservation=NoExtremePreservation

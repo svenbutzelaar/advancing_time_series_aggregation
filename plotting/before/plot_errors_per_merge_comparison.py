@@ -11,6 +11,7 @@ csv_files = {
     # "EP during clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_DuringClustering_hp0.95_lp0.05.csv",
     # "EP extreme seperation bool": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremes_hp0.95_lp0.05.csv",
     "EP extreme seperation": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremesSum_hp0.95_lp0.05.csv",
+    # "Demand / availabilities": "plotting/csv_data/per_merge/ward_k200_demandoveravailabilities_NoExtremePreservation_hp0.95_lp0.05.csv",
 }
 
 # Clear, academic labels
