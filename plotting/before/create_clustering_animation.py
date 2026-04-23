@@ -40,19 +40,22 @@ import heapq
 #     (identical seed / logic to clustering_animation.py)
 # ══════════════════════════════════════════════
 
-np.random.seed(42)
-N    = 144
-DAYS = 6
-PROFILE_LABELS = ["Demand", "Solar", "Wind offshore", "Wind onshore"]
+np.random.seed(44)
+N    = 48
+DAYS = 3
+# PROFILE_LABELS = ["Demand", "Solar", "Wind offshore", "Wind onshore"]
+PROFILE_LABELS = ["Demand"]
 COLORS_PROFILE = ["#185FA5", "#E8A020", "#0F6E56", "#533AB7"]
 
 hours       = np.arange(N)
 hour_of_day = hours % 24
 
-demand = (0.5 + 0.3 * np.sin(2 * np.pi * (hour_of_day - 6) / 24)
+demand = (0.5 + 0.4 * np.sin(2 * np.pi * (hour_of_day - 6) / 24)
           + 0.05 * np.random.randn(N))
 demand[17] += 0.25
 demand[18] += 0.20
+demand[36] -= 0.1
+
 
 solar_base = np.maximum(0, np.sin(np.pi * (hour_of_day - 6) / 12))
 solar = (solar_base * (0.6 + 0.4 * np.sin(2 * np.pi * hours / 48))
@@ -69,6 +72,7 @@ wind_on = 0.35 + 0.30 * np.sin(2 * np.pi * hours / 40 + 2.5) + 0.07 * np.random.
 wind_on = np.clip(wind_on, 0, 1)
 
 values = np.column_stack([demand, solar, wind_off, wind_on])   # (N, 4)
+values = np.column_stack([demand])   # (N, 4)
 
 # ── Thresholds (mirrors hierarchical_time_clustering_ward) ──────────────
 
@@ -78,13 +82,19 @@ LOW_PERCENTILE  = 0.05
 high_thresholds = np.zeros(4)
 low_thresholds  = np.zeros(4)
 
-for j in range(4):
+for j in range(len(PROFILE_LABELS)):
     col_sorted = np.sort(values[:, j])
     high_thresholds[j] = col_sorted[int(np.ceil(HIGH_PERCENTILE * N)) - 1]
     low_thresholds[j]  = col_sorted[int(np.ceil(LOW_PERCENTILE  * N)) - 1]
 
 # Profile types: 0=Demand (high extreme), 1-3=Solar/Wind (low extreme)
 IS_DEMAND = [True, False, False, False]   # True → watch upper threshold
+
+# print(high_thresholds[0])
+
+
+# for i, v in enumerate(demand):
+#     print(f"{i}:{v} {'--' if v >= high_thresholds[0] else ''}")
 
 # ── Ward clustering ──────────────────────────────────────────────────────
 
@@ -110,7 +120,7 @@ def _entry(c1, c2):
     _ctr[0] += 1
     return (_ward(c1, c2), _ctr[0], c1, c2)
 
-N_PRIME = 12
+N_PRIME = 8
 
 def run_clustering():
     cs = [Cluster(i, values[i]) for i in range(N)]
@@ -154,7 +164,7 @@ def build_step_array(parts, reps, col):
     return arr
 
 clustered_mean = np.column_stack([
-    build_step_array(final_parts, final_reps, c) for c in range(4)
+    build_step_array(final_parts, final_reps, c) for c in range(len(PROFILE_LABELS))
 ])
 
 # ── Extreme-adjusted representatives ──────────────────────────────────
@@ -164,7 +174,7 @@ clustered_mean = np.column_stack([
 extreme_reps = []
 for c in active_clusters:
     rep = c.rep.copy()
-    for j in range(4):
+    for j in range(len(PROFILE_LABELS)):
         if IS_DEMAND[j]:
             if c.max_v[j] >= high_thresholds[j]:
                 rep[j] = c.max_v[j]
@@ -174,7 +184,7 @@ for c in active_clusters:
     extreme_reps.append(rep)
 
 clustered_extreme = np.column_stack([
-    build_step_array(final_parts, extreme_reps, c) for c in range(4)
+    build_step_array(final_parts, extreme_reps, c) for c in range(len(PROFILE_LABELS))
 ])
 
 # Which timesteps actually move (mean ≠ extreme)?
@@ -254,7 +264,7 @@ def render_bounds_frame():
     gs = GridSpec(4, 1, figure=fig, hspace=0.55,
                   top=0.90, bottom=0.07, left=0.10, right=0.97)
 
-    for col in range(4):
+    for col in range(len(PROFILE_LABELS)):
         ax = fig.add_subplot(gs[col])
         _base_ax(ax, col, bottom=(col == 3))
         _draw_original(ax, col)
@@ -287,7 +297,7 @@ def render_bounds_frame():
     plt.close(fig)
     print("Saved → extreme_bounds_frame.png")
 
-render_bounds_frame()
+# render_bounds_frame()
 
 
 # ══════════════════════════════════════════════
@@ -323,7 +333,7 @@ def render_anim_frame(t):
 
     current_reps = interpolated_reps(t)
 
-    for col in range(4):
+    for col in range(len(PROFILE_LABELS)):
         ax = fig.add_subplot(gs[col])
         _base_ax(ax, col, bottom=(col == 3))
         _draw_original(ax, col)
@@ -401,53 +411,124 @@ def render_anim_frame(t):
 # 5.  Build frames
 # ══════════════════════════════════════════════
 
-ANIM_FRAMES   = 40
-PAUSE_FRAMES  = 8    # hold at t=0 before moving
-FREEZE_FRAMES = 30   # hold at the end
+# ANIM_FRAMES   = 40
+# PAUSE_FRAMES  = 8    # hold at t=0 before moving
+# FREEZE_FRAMES = 30   # hold at the end
 
-frames    = []
-durations = []
+# frames    = []
+# durations = []
 
-def add(img, ms):
-    frames.append(img)
-    durations.append(ms)
+# def add(img, ms):
+#     frames.append(img)
+#     durations.append(ms)
 
-print("Rendering extreme preservation animation …")
+# print("Rendering extreme preservation animation …")
 
-# Hold on bounds frame
-init_frame = render_anim_frame(0.0)
-for _ in range(PAUSE_FRAMES):
-    add(init_frame, 80)
-print("  initial hold done")
+# # Hold on bounds frame
+# init_frame = render_anim_frame(0.0)
+# for _ in range(PAUSE_FRAMES):
+#     add(init_frame, 80)
+# print("  initial hold done")
 
-# Animate t 0 → 1
-for i in range(1, ANIM_FRAMES + 1):
-    t = i / ANIM_FRAMES
-    add(render_anim_frame(t), 55)
-    if i % 10 == 0:
-        print(f"  anim frame {i}/{ANIM_FRAMES}")
+# # Animate t 0 → 1
+# for i in range(1, ANIM_FRAMES + 1):
+#     t = i / ANIM_FRAMES
+#     add(render_anim_frame(t), 55)
+#     if i % 10 == 0:
+#         print(f"  anim frame {i}/{ANIM_FRAMES}")
 
-# Freeze on final frame
-final_frame = render_anim_frame(1.0)
-for _ in range(FREEZE_FRAMES):
-    add(final_frame, 60)
+# # Freeze on final frame
+# final_frame = render_anim_frame(1.0)
+# for _ in range(FREEZE_FRAMES):
+#     add(final_frame, 60)
 
-print(f"Total frames: {len(frames)}")
+# print(f"Total frames: {len(frames)}")
 
-# ══════════════════════════════════════════════
-# 6.  Save outputs
-# ══════════════════════════════════════════════
+# # ══════════════════════════════════════════════
+# # 6.  Save outputs
+# # ══════════════════════════════════════════════
 
-out_gif = "extreme_preservation_animation.gif"
-frames[0].save(
-    out_gif,
-    save_all      = True,
-    append_images = frames[1:],
-    duration      = durations,
-    loop          = 1,       # play once, freeze on last frame
-    optimize      = False,
-)
-print(f"Saved → {out_gif}")
+# out_gif = "extreme_preservation_animation.gif"
+# frames[0].save(
+#     out_gif,
+#     save_all      = True,
+#     append_images = frames[1:],
+#     duration      = durations,
+#     loop          = 1,       # play once, freeze on last frame
+#     optimize      = False,
+# )
+# print(f"Saved → {out_gif}")
 
-final_frame.save("extreme_preservation_final_frame.png")
-print("Saved → extreme_preservation_final_frame.png")
+# final_frame.save("extreme_preservation_final_frame.png")
+# print("Saved → extreme_preservation_final_frame.png")
+
+def render_thesis_figure():
+    fig = plt.figure(figsize=(9, 3.2), dpi=200)  # wide + compact for paper
+    ax = fig.add_subplot(111)
+
+    # --- Original demand ---
+    ax.plot(hours, values[:, 0],
+            color="#185FA5", linewidth=1.5, alpha=0.6,
+            label="Original demand")
+
+    # --- Clustered mean (no extreme preservation) ---
+    ax.plot(hours, clustered_mean[:, 0],
+            color="#C0392B", linewidth=2.2,
+            label="HC")
+
+    # --- Extreme preservation ---
+    ax.plot(hours, clustered_extreme[:, 0],
+            color="#8E44AD", linewidth=2.2,
+            linestyle="--",
+            label="Extreme representative correction")
+
+    # --- Threshold line ---
+    ax.axhline(y=high_thresholds[0],
+               color="#C0392B", linestyle=":",
+               linewidth=1.5, alpha=0.9,
+               label="Extreme threshold")
+
+    # # --- Optional arrows (only where change happens) ---
+    # for i in range(N):
+    #     y0 = clustered_mean[i, 0]
+    #     y1 = clustered_extreme[i, 0]
+
+    #     if abs(y1 - y0) > 1e-6:
+    #         ax.annotate(
+    #             "",
+    #             xy=(i, y1),
+    #             xytext=(i, y0),
+    #             arrowprops=dict(
+    #                 arrowstyle="->",
+    #                 color="#555555",
+    #                 lw=0.8,
+    #                 alpha=0.6
+    #             )
+    #         )
+
+    # --- Styling ---
+    ax.set_xlim(0, N)
+    ax.set_ylim(0.1, 1.1)
+    ax.set_xlabel("Time step")
+    ax.set_ylabel("Demand")
+    ax.set_title("Effect of Extreme-Event Preservation on Clustered Demand")
+
+    ax.grid(alpha=0.2)
+    ax.legend(
+        fontsize=8,
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1),   # move outside right
+        borderaxespad=0
+    )
+    # fig.tight_layout(rect=[0, 0, 0.85, 1])  # leave space for legend
+
+    for spine in ax.spines.values():
+        spine.set_color("#CCCCCC")
+
+    fig.tight_layout()
+    fig.savefig("thesis_extreme_preservation.png", dpi=300)
+    plt.close(fig)
+
+    print("Saved → thesis_extreme_preservation.png")
+    
+render_thesis_figure()

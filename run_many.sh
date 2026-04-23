@@ -40,3 +40,13 @@ do
 done
 
 sbatch run.sh --n_prime=8760 --extreme_preservation=NoExtremePreservation
+
+for n in \
+    4380 2920 2190 1752 \
+    1460 1095 876 730
+do
+    sbatch run.sh \
+        --n_prime=$n \
+        --extreme_preservation=NoExtremePreservation \
+        --clustering_method=UTR
+done

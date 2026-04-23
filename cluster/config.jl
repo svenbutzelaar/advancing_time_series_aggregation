@@ -5,6 +5,7 @@ using ArgParse
     Afterwards
     SeperateExtremesSum
     SeperateTops
+    DynamicProgramming
 end
 
 
@@ -13,6 +14,7 @@ end
     PerLocation
     PerProfile
     DemandOverAvailabilities
+    Global
 end
 
 const UPDATE_AFTER_CLUSTERING = (

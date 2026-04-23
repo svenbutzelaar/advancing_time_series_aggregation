@@ -6,17 +6,17 @@ from pathlib import Path
 
 # --- Config: CSV files and which columns to plot ---
 csv_files = {
-    "No EP": "plotting/csv_data/per_merge/ward_k200_perlocation_NoExtremePreservation_hp0.95_lp0.05.csv",
-    "EP after clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_Afterwards_hp0.95_lp0.05.csv",
+    "HC": "plotting/csv_data/per_merge/ward_k200_perlocation_NoExtremePreservation_hp0.95_lp0.05.csv",
+    "PEC": "plotting/csv_data/per_merge/ward_k200_perlocation_Afterwards_hp0.95_lp0.05.csv",
     # "EP during clustering": "plotting/csv_data/per_merge/ward_k200_perlocation_DuringClustering_hp0.95_lp0.05.csv",
     # "EP extreme seperation bool": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremes_hp0.95_lp0.05.csv",
-    "EP extreme seperation": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremesSum_hp0.95_lp0.05.csv",
+    "AEC": "plotting/csv_data/per_merge/ward_k200_perlocation_SeperateExtremesSum_hp0.95_lp0.05.csv",
     # "Demand / availabilities": "plotting/csv_data/per_merge/ward_k200_demandoveravailabilities_NoExtremePreservation_hp0.95_lp0.05.csv",
 }
 
 # Clear, academic labels
 error_labels = {
-    "errors": "Sum of Squared Errors (SSE)",
+    "errors": "Mean Sum of Squared Errors (MSSE)",
     # "ldc_errors": "Load Duration Curve RMSE"
 }
 

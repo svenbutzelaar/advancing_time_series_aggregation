@@ -18,6 +18,43 @@ config = @isdefined(CONFIG) ? CONFIG : ClusteringConfig()
 println("Using config: ", config)
 const RESULTS_CSV = "plotting/csv_data/regret/v2_$(experiment_name(config)).csv"
 
+function create_cluster_partitions_for_experiment(connection, config)
+    if config.clustering_method != UTR
+        cluster_partitions!(connection, config)
+    elseif config.clustering_method == UTR
+        @assert 8760 % config.n_prime == 0 "full year is not devisible by num_clusters"
+        partition = div(8760, config.n_prime)
+        # asset partitions
+        DuckDB.query(
+            connection,
+            "UPDATE assets_rep_periods_partitions
+            SET partition = $(partition)
+            WHERE 
+                       LOWER(asset) LIKE '%wind_onshore%'
+                    OR LOWER(asset) LIKE '%wind_offshore%'
+                    OR LOWER(asset) LIKE '%solar%'
+                    OR LOWER(asset) LIKE '%e_demand%'
+            ",
+        )
+
+        DuckDB.query(
+            connection,
+            "UPDATE flows_rep_periods_partitions
+            SET partition = $(partition)
+            WHERE 
+                       LOWER(from_asset) LIKE '%wind_onshore%'
+                    OR LOWER(from_asset) LIKE '%wind_offshore%'
+                    OR LOWER(from_asset) LIKE '%solar%'
+                    OR LOWER(from_asset) LIKE '%e_demand%'
+                    OR LOWER(to_asset) LIKE '%wind_onshore%'
+                    OR LOWER(to_asset) LIKE '%wind_offshore%'
+                    OR LOWER(to_asset) LIKE '%solar%'
+                    OR LOWER(to_asset) LIKE '%e_demand%'
+            ",
+        )
+    end
+end
+
 # ──────────────────────────────────────────
 # Core experiment runner
 # ──────────────────────────────────────────
@@ -43,7 +80,7 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing, b
         cp("db_files/base_db.db", db; force = true)
         conn_setup = DBInterface.connect(DuckDB.DB, db)
         t0 = time()
-        cluster_partitions!(conn_setup, config)
+        create_cluster_partitions_for_experiment(conn_setup, config)
         timings["t_clustering"] = time() - t0
         TEM.populate_with_defaults!(conn_setup)
         close(conn_setup)

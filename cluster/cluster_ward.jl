@@ -3,6 +3,7 @@ using DataStructures
 
 include("profile_type.jl")
 include("config.jl")
+include("cluster_dynamic_programming.jl")
 
 # =========================
 # Linked list node
@@ -199,7 +200,10 @@ function hierarchical_time_clustering_ward(
     values::Matrix{Float64},
     modes::Vector{ProfileType},
     config::ClusteringConfig = ClusteringConfig(),
-)
+)   
+    if config.extreme_preservation == DynamicProgramming
+        return optimal_time_partitioning_dp(values, modes, config)
+    end
 
     n, d = size(values)
     @assert length(modes) == d "Length of modes must match number of columns"
@@ -255,7 +259,7 @@ function hierarchical_time_clustering_ward(
     heap = MutableBinaryMinHeap{HeapEntry}()
     
         function compute_conflict_value(c1::LinkedListNode, c2::LinkedListNode)
-            if config.extreme_preservation == SeperateExtremesSum ||config.extreme_preservation == SeperateTops
+            if config.extreme_preservation == SeperateExtremesSum || config.extreme_preservation == SeperateTops
                 return get_conflict_in_extreme_count(c1, c2)
             else
                 return 0

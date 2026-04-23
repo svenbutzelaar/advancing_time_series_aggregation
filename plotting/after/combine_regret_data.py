@@ -50,7 +50,11 @@ def calculate_investment_costs(investment_csv_path: Path, asset_capacities: dict
 
         unit_capacity = asset_capacities.get(asset_name, 0.0)
         if unit_capacity == 0.0 and asset_name not in asset_capacities:
-            print(f"  [WARN] No capacity found for asset: {asset_name} — capacity will be 0")
+            print(f"  [WARN] No capacity found for asset: {asset_name} — skipping ")
+        elif unit_capacity == 0.0:
+            if row["solution"] > 0:
+                print(f"  [ERROR] capacity found for asset is 0: {asset_name} - skipping")
+            continue
 
         costs[asset_type]      = costs.get(asset_type, 0.0)      + INVESTMENT_COSTS[asset_type] * row["solution"] * unit_capacity
         capacities[asset_type] = capacities.get(asset_type, 0.0) + unit_capacity * row["solution"]
@@ -167,6 +171,16 @@ df_merged = df_base.merge(
 )
 drop_cols = [c for c in df_merged.columns if c.endswith("_drop")]
 df_merged.drop(columns=drop_cols, inplace=True)
+
+df_merged.loc[
+    df_merged["file_name"].str.contains("demandoveravailabilities"),
+    "method"
+] = "demandoveravailabilities"
+
+df_merged.loc[
+    df_merged["file_name"].str.contains("utr"),
+    "method"
+] = "UTR"
 
 # ── Enrich with log data and investment costs ─────────────────────────────────
 true_op_costs  = []

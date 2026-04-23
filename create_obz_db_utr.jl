@@ -27,11 +27,36 @@ partition = div(8760, config.n_prime)
 
 println("partition for UTR: ", partition)
 
+
+# ------------------------------------------------------------
+# also implement in run_experiment.jl
+# -------------------------------------------------------
+
 DuckDB.query(
     connection,
     "UPDATE assets_rep_periods_partitions
     SET partition = $(partition)
-    WHERE partition = 1
+    WHERE 
+                 LOWER(asset) LIKE '%wind_onshore%'
+              OR LOWER(asset) LIKE '%wind_offshore%'
+              OR LOWER(asset) LIKE '%solar%'
+              OR LOWER(asset) LIKE '%e_demand%'
+    ",
+)
+
+DuckDB.query(
+    connection,
+    "UPDATE flows_rep_periods_partitions
+    SET partition = $(partition)
+    WHERE 
+                 LOWER(from_asset) LIKE '%wind_onshore%'
+              OR LOWER(from_asset) LIKE '%wind_offshore%'
+              OR LOWER(from_asset) LIKE '%solar%'
+              OR LOWER(from_asset) LIKE '%e_demand%'
+              OR LOWER(to_asset) LIKE '%wind_onshore%'
+              OR LOWER(to_asset) LIKE '%wind_offshore%'
+              OR LOWER(to_asset) LIKE '%solar%'
+              OR LOWER(to_asset) LIKE '%e_demand%'
     ",
 )
 

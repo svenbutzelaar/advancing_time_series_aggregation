@@ -80,6 +80,10 @@ function cluster_partitions!(
         cluster_partitions_demand_over_availabilities!(
             df, results, stats, config
         )
+    elseif config.clustering_method == Global
+        cluster_partitions_global!(
+            df, results, stats, config
+        )
     else
         println("No valid config.clustering_method: ", config.clustering_method)
         exit(1)
@@ -447,6 +451,78 @@ function cluster_partitions_demand_over_availabilities!(
                     year       = year,
                     errors     = [ward_errors[s][1] for s in eachindex(ward_errors)],
                     ldc_errors = [ldc_errors[s][1] for s in eachindex(ldc_errors)],
+                ))
+            end
+        end
+    end
+end
+
+function cluster_partitions_global!(
+    df::DataFrame,
+    results::DataFrame,
+    stats::DataFrame,
+    config::ClusteringConfig,
+)
+    for group_per_year_period in groupby(df, [:rep_period, :year])
+
+        rep_period = first(group_per_year_period.rep_period)
+        year       = first(group_per_year_period.year)
+
+        sort!(group_per_year_period, [:profile_name, :timestep])
+
+        profiles  = unique(group_per_year_period.profile_name)
+        timesteps = unique(group_per_year_period.timestep)
+        n_t       = length(timesteps)
+        n_p       = length(profiles)
+
+        # Stack all profiles globally as columns
+        values = Matrix{Float64}(undef, n_t, n_p)
+        for (j, profile) in enumerate(profiles)
+            sub = group_per_year_period[
+                group_per_year_period.profile_name .== profile, :
+            ]
+            values[:, j] .= sub.value
+        end
+
+        profile_types = [getProfileType(p) for p in profiles]
+
+        partitions,
+        partition_values,
+        mean_values,
+        ward_errors,
+        ldc_errors = hierarchical_time_clustering_ward(
+            values,
+            profile_types,
+            config
+        )
+
+        for (j, profile_name) in enumerate(profiles)
+
+            location = first(
+                group_per_year_period[
+                    group_per_year_period.profile_name .== profile_name, :location
+                ]
+            )
+
+            push!(results, (
+                asset         = profile_name,
+                rep_period    = rep_period,
+                specification = "explicit",
+                partition     = join(partitions, ";"),
+                values        = join(getindex.(partition_values, j), ";"),
+                mean_values   = join(getindex.(mean_values, j), ";"),
+                year          = year,
+                location      = location,
+            ))
+
+            if config.calc_stats
+                push!(stats, (
+                    asset      = profile_name,
+                    location   = location,
+                    rep_period = rep_period,
+                    year       = year,
+                    errors     = [ward_errors[s][j] for s in eachindex(ward_errors)],
+                    ldc_errors = [ldc_errors[s][j] for s in eachindex(ldc_errors)],
                 ))
             end
         end

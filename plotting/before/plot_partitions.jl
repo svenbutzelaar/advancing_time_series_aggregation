@@ -24,7 +24,7 @@ profiles = [
     "NL_Wind_Onshore"
 ]
 
-hours = 72 * 2
+hours = 72 * 7
 rep_period = 1      # change if needed
 year = 2050         # change if needed
 
@@ -327,3 +327,86 @@ if length(individual_plots_one_line) == 4
 else
     @warn "Combined plot not created — not all 4 profiles available."
 end
+
+
+# ----------------------------
+# Ratio plot: old vs adjusted (using partitions)
+# ----------------------------
+
+function get_profile(df, name; hours=72)
+    df_profile = filter(row -> row.profile_name == name, df)
+    sort!(df_profile, :timestep)
+    return df_profile[1:hours, :]
+end
+
+function build_partition_mean(values, clusters, hours)
+    out = similar(values)
+    idx = 1
+    for cluster_size in clusters
+        cluster_end = min(idx + cluster_size - 1, hours)
+        mean_val = mean(values[idx:cluster_end])
+        out[idx:cluster_end] .= mean_val
+        idx += cluster_size
+        idx > hours && break
+    end
+    return out
+end
+
+# --- Load profiles (OLD = raw values) ---
+df_demand = get_profile(df, "NL_E_Demand"; hours=hours)
+df_solar  = get_profile(df, "NL_Solar"; hours=hours)
+df_won    = get_profile(df, "NL_Wind_Onshore"; hours=hours)
+df_woff   = get_profile(df, "NL_Wind_Offshore"; hours=hours)
+
+timesteps = df_demand.timestep
+
+demand_old = df_demand.value
+solar_old  = df_solar.value
+won_old    = df_won.value
+woff_old   = df_woff.value
+
+# --- Build adjusted (partition mean) series ---
+clusters_demand = partition_dict["NL_E_Demand"]
+clusters_solar  = partition_dict["NL_Solar"]
+clusters_won    = partition_dict["NL_Wind_Onshore"]
+clusters_woff   = partition_dict["NL_Wind_Offshore"]
+
+demand_adj = build_partition_mean(demand_old, clusters_demand, hours)
+solar_adj  = build_partition_mean(solar_old,  clusters_solar,  hours)
+won_adj    = build_partition_mean(won_old,    clusters_won,    hours)
+woff_adj   = build_partition_mean(woff_old,   clusters_woff,   hours)
+
+# --- Compute ratios ---
+ϵ = 1e-6
+
+ratio_old = demand_old ./ (solar_old .+ won_old .+ woff_old .+ ϵ)
+ratio_adj = demand_adj ./ (solar_adj .+ won_adj .+ woff_adj .+ ϵ)
+
+# --- Plot ---
+p_ratio = plot(
+    timesteps,
+    ratio_old,
+    label = "Old values",
+    linewidth = 2,
+    color = :blue,
+    xlabel = "Hour",
+    ylabel = "Demand / Renewables",
+    title = "Demand / (Solar + Wind Onshore + Wind Offshore)"
+)
+
+plot!(
+    timesteps,
+    ratio_adj,
+    label = "Adjusted (partition means)",
+    linewidth = 2,
+    color = :red
+)
+
+# --- Save ---
+ratio_dir = "plots/ratios"
+mkpath(ratio_dir)
+
+filename = joinpath(ratio_dir, "NL_ratio_old_vs_adjusted.png")
+savefig(p_ratio, filename)
+
+println("Saved ratio comparison plot: ", filename)

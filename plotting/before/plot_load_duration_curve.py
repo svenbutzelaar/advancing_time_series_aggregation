@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-num_clusters = 1500
+num_clusters = 1000
 extreme_preservation = True
 Path("plots/load_duration_curve").mkdir(parents=True, exist_ok=True)
 

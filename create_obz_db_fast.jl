@@ -33,16 +33,7 @@ connection = DBInterface.connect(DuckDB.DB, database_name)
 if !create_obz_invest_full_resolution && config.clustering_method != UTR
     cluster_partitions!(connection, config)
 elseif config.clustering_method == UTR
-    @assert 8760 % config.n_prime == 0 "full year is not devisible by num_clusters"
-    partition = div(8760, config.n_prime)
-    # asset partitions
-    DuckDB.query(
-        connection,
-        "UPDATE assets_rep_periods_partitions
-        SET partition = $partition
-        WHERE partition == 1
-        ",
-    )
+    throw("Use create_obz_db_utr.jl")
 end
 
 TEM.populate_with_defaults!(connection)

@@ -17,8 +17,22 @@ ENS_COST_PER_UNIT = 68887
 # -----------------------------
 df = pd.read_csv(csv_path)
 
-df = df[(df["method"] == "SeperateExtremesSum") |  (df["method"] == "Afterwards") |  (df["method"] == "NoExtremePreservation") |  (df["method"] == "base_case")]
+methods = [
+    "SeperateExtremesSum",
+    "Afterwards",
+    "NoExtremePreservation",
+    "base_case",
+    "demandoveravailabilities",
+    "UTR"
+    
+]
 
+methods_on_for_log_scale = [
+    "NoExtremePreservation",
+    "UTR",
+]
+
+df = df[df["method"].isin(methods)]
 # Clean up method names if needed
 df['method'] = df['method'].str.strip()
 
@@ -59,8 +73,7 @@ x_vals = list(range(0, 8760, 1000))
 colors = plt.cm.tab10.colors
 method_colors = {m: colors[i % len(colors)] for i, m in enumerate(methods)}
 
-no_ep = "NoExtremePreservation"
-other_methods = [m for m in methods if m != no_ep]
+other_methods = [m for m in methods if m not in methods_on_for_log_scale]
 
 # -----------------------------
 # Figure: two-panel layout
@@ -73,9 +86,15 @@ fig, (ax_main, ax_log) = plt.subplots(
     gridspec_kw={"width_ratios": [2, 1]},
 )
 
+# Determine y-limit based only on non-log-scale methods
+y_max = plot_df[
+    ~plot_df["method"].isin(methods_on_for_log_scale)
+]["relative_regret"].max()
+
 # --- Main panel ---
-for method in other_methods:
+for method in methods:
     sub = plot_df[plot_df["method"] == method].sort_values("num_clusters")
+
     ax_main.plot(
         sub["num_clusters"],
         sub["relative_regret"],
@@ -84,13 +103,16 @@ for method in other_methods:
         color=method_colors[method],
         linewidth=2,
         markersize=6,
+        linestyle="--" if method in methods_on_for_log_scale else "-",
+        alpha=0.7 if method in methods_on_for_log_scale else 1.0,
     )
 
 ax_main.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
 ax_main.set_xlabel("Number of clusters", fontsize=12)
 ax_main.set_ylabel("Relative regret vs. baseline (%)", fontsize=12)
-ax_main.set_title("Relative regret — excluding NoExtremePreservation", fontsize=13, fontweight="bold")
+ax_main.set_title("Relative regret (linear scale)", fontsize=13, fontweight="bold")
 ax_main.set_xticks(x_vals)
+ax_main.set_ylim(top=y_max, bottom=-1)
 ax_main.legend(title="Method", fontsize=10)
 ax_main.grid(True, alpha=0.3)
 
@@ -106,11 +128,12 @@ for method in methods:
         color=method_colors[method],
         linewidth=2,
         markersize=5,
-        linestyle="--" if method == no_ep else "-",
+        linestyle="--" if method in methods_on_for_log_scale else "-",
     )
 
 ax_log.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
 ax_log.set_yscale("symlog", linthresh=10)   # symlog handles negative + large positive
+ax_log.set_ylim(bottom=-1)
 ax_log.yaxis.set_major_formatter(mticker.ScalarFormatter())
 ax_log.set_xlabel("Number of clusters", fontsize=12)
 ax_log.set_ylabel("Relative regret (%, symlog scale)", fontsize=12)
