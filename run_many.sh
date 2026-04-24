@@ -63,6 +63,5 @@ for n in $(seq 100 100 4501)
 do
     sbatch run.sh \
         --n_prime=$n \
-        --extreme_preservation=SeperateExtremesSum \
-        --clustering_method=DynamicProgramming
+        --extreme_preservation=DynamicProgramming
 done
