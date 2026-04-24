@@ -50,3 +50,19 @@ do
         --extreme_preservation=NoExtremePreservation \
         --clustering_method=UTR
 done
+
+for n in $(seq 500 500 6000)
+do
+    sbatch run.sh \
+        --n_prime=$n \
+        --extreme_preservation=NoExtremePreservation \
+        --clustering_method=Global
+done
+
+for n in $(seq 100 100 4501)
+do
+    sbatch run.sh \
+        --n_prime=$n \
+        --extreme_preservation=SeperateExtremesSum \
+        --clustering_method=DynamicProgramming
+done
