@@ -219,6 +219,10 @@ df_merged["true_operational_cost"] = true_op_costs
 inv_df = pd.DataFrame(investment_rows)
 df_final = pd.concat([df_merged.reset_index(drop=True), inv_df.reset_index(drop=True)], axis=1)
 
+print(df_final[df_final["file_name"].str.contains("global", case=False, na=False)])
+df_final.loc[df_final["file_name"].str.contains("global", case=False, na=False), "method"] = "NoExtremePreservation Global"
+df_final = df_final.drop_duplicates()
+
 # ── Save ──────────────────────────────────────────────────────────────────────
 output_file.parent.mkdir(parents=True, exist_ok=True)
 df_final.to_csv(output_file, index=False)

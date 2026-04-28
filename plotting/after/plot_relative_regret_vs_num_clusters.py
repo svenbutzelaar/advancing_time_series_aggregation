@@ -21,15 +21,18 @@ methods = [
     "SeperateExtremesSum",
     "Afterwards",
     "NoExtremePreservation",
+    # "NoExtremePreservation Global",
     "base_case",
-    "demandoveravailabilities",
-    "UTR"
+    # "demandoveravailabilities",
+    "UTR",
+    "DynamicProgramming"
     
 ]
 
 methods_on_for_log_scale = [
     "NoExtremePreservation",
     "UTR",
+    "NoExtremePreservation Global",
 ]
 
 df = df[df["method"].isin(methods)]
@@ -113,6 +116,7 @@ ax_main.set_ylabel("Relative regret vs. baseline (%)", fontsize=12)
 ax_main.set_title("Relative regret (linear scale)", fontsize=13, fontweight="bold")
 ax_main.set_xticks(x_vals)
 ax_main.set_ylim(top=y_max, bottom=-1)
+# ax_main.set_ylim(top=100, bottom=-1)
 ax_main.legend(title="Method", fontsize=10)
 ax_main.grid(True, alpha=0.3)
 

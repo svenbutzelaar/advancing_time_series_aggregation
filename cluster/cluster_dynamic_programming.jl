@@ -283,10 +283,10 @@ function optimal_time_partitioning_dp(
     values :: Matrix{Float64},
     modes  :: Vector{ProfileType},
     config :: ClusteringConfig = ClusteringConfig();
-    max_block_size :: Int = 168,
 )
     n_t, d = size(values)
     @assert length(modes) == d "Length of modes must match number of columns"
+    max_block_size = config.max_block_size
 
     K = config.n_prime
     @assert K <= n_t  "n_prime ($K) exceeds number of timesteps ($n_t)"

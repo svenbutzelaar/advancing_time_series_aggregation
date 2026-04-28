@@ -14,6 +14,7 @@ function main()
         clustering_method = cm,
         high_percentile = args["high_percentile"],
         low_percentile = args["low_percentile"],
+        max_block_size = args["max_block_size"],
     )
 
     script = args["script"]

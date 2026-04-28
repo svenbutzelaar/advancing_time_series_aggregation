@@ -35,11 +35,14 @@ Base.@kwdef struct ClusteringConfig
     high_percentile::Float64 = 0.95
     low_percentile::Float64 = 0.05
     tops_window::Int = 5
+    max_block_size::Int = 168
 end
 
 function experiment_name(config::ClusteringConfig)
     ep_str = if config.extreme_preservation == SeperateTops
         "SeperateTops_w$(config.tops_window)"
+    elseif config.extreme_preservation == DynamicProgramming
+        "DynamicProgramming_s$(config.max_block_size)"
     else
         String(Symbol(config.extreme_preservation))
     end
@@ -69,9 +72,10 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
     # clustering_method (stored as lowercase in experiment_name)
     clustering_method_str = parts[3]
     clustering_method = let
-        match = findfirst(m -> lowercase(string(m)) == clustering_method_str, instances(ClusteringMethod))
-        @assert !isnothing(match) "Unknown clustering method: $clustering_method_str"
-        match
+        all = instances(ClusteringMethod)
+        idx = findfirst(m -> lowercase(string(m)) == clustering_method_str, all)
+        @assert !isnothing(idx) "Unknown clustering method: $clustering_method_str"
+        all[idx]  # ← now it's a ClusteringMethod
     end
     
     # hp{high_percentile} and lp{low_percentile} are always the last two parts
@@ -81,16 +85,24 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
     # Everything between index 4 and end-2 is the ep_str (1 or 2 parts)
     ep_parts = parts[4:end-2]
     
-    extreme_preservation, tops_window = if length(ep_parts) == 2
+    extreme_preservation, tops_window, max_block_size = if length(ep_parts) == 2
         # SeperateTops_w{tops_window}
-        @assert ep_parts[1] == "SeperateTops" "Unexpected two-part ep: $(join(ep_parts, "_"))"
-        tops_window = parse(Int, ep_parts[2][2:end])  # strip leading 'w'
-        SeperateTops, tops_window
+        if ep_parts[1] == "SeperateTops"
+            tops_window = parse(Int, ep_parts[2][2:end])  # strip leading 'w'
+            SeperateTops, tops_window, 168
+        elseif ep_parts[1] == "DynamicProgramming"
+            max_block_size = parse(Int, ep_parts[2][2:end])  # strip leading 'm'
+            DynamicProgramming, 5, max_block_size
+        else
+            throw("Unexpected two-part ep: $(join(ep_parts, "_"))")
+        end
     else
         ep_sym = Symbol(ep_parts[1])
         ep = getfield(@__MODULE__, ep_sym)::ExtremePreservation
-        ep, 5  # default tops_window
+        ep, 5, 168  # default tops_window
     end
+
+    @show(extreme_preservation, tops_window, max_block_size, clustering_method, parts)
     
     return ClusteringConfig(
         n_prime              = n_prime,
@@ -99,6 +111,7 @@ function get_config_from_experiment_name(name::String)::ClusteringConfig
         high_percentile      = high_percentile,
         low_percentile       = low_percentile,
         tops_window          = tops_window,
+        max_block_size       = max_block_size,
     )
 end
 
@@ -139,6 +152,9 @@ function parse_cli()
         "--tops_window"
             arg_type = Int
             default = 5
+        "--max_block_size"
+            arg_type = Int
+            default = 168
     end
 
     return parse_args(s)

@@ -15,6 +15,10 @@ output_dir.mkdir(parents=True, exist_ok=True)
 df = pd.read_csv(csv_path)
 df["method"] = df["method"].str.strip()
 
+df["runtime"] = df["t_solve"]
+
+df = df[df["calc_ens"] == False]
+
 # Separate baseline (8760) from clustered runs
 baseline = df[df["num_clusters"] == 8760].copy()
 plot_df = df[df["num_clusters"] != 8760].copy()

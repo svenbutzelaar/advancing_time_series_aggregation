@@ -65,3 +65,20 @@ do
         --n_prime=$n \
         --extreme_preservation=DynamicProgramming
 done
+
+
+for n in $(seq 100 100 600)
+do
+    sbatch run.sh \
+        --n_prime=$n \
+        --extreme_preservation=DynamicProgramming \
+        --max_block_size=672
+done
+
+for n in $(seq 100 100 600)
+do
+    sbatch run.sh \
+        --n_prime=$n \
+        --extreme_preservation=DynamicProgramming \
+        --max_block_size=2688
+done
