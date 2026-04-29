@@ -67,7 +67,7 @@ do
 done
 
 
-for n in $(seq 100 100 600)
+for n in $(seq 600 100 1100)
 do
     sbatch run.sh \
         --n_prime=$n \
@@ -75,7 +75,7 @@ do
         --max_block_size=672
 done
 
-for n in $(seq 100 100 600)
+for n in $(seq 600 100 1100)
 do
     sbatch run.sh \
         --n_prime=$n \

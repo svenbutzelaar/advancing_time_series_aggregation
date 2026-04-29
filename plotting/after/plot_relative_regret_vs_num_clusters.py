@@ -13,75 +13,71 @@ output_dir.mkdir(parents=True, exist_ok=True)
 ENS_COST_PER_UNIT = 68887
 
 # -----------------------------
+# Experiment label mapping
+# Edit this dict to rename experiments in the legend.
+# Key:   substring matched against file_name (checked in order)
+# Value: label shown in the plot
+# -----------------------------
+EXPERIMENT_LABELS = {
+    # "demandoveravailabilities": "Demand/Avail.",
+    "utr":                       "UTR",
+    # "global_NoExtremePreservation": "HC (global)",
+    "perlocation_NoExtremePreservation": "HC",
+    "perlocation_SeperateExtremesSum":   "EAC",
+    "perlocation_Afterwards":   "PEC",
+    "perlocation_DynamicProgramming_hp":    "DP",
+    # "perlocation_DynamicProgramming_s672":    "DP (672)",
+    # "perlocation_DynamicProgramming_s2688":    "DP (2688)",
+    "base_case":                 "Base case",
+}
+
+# Which labels should appear dashed + faded in the main panel
+METHODS_ON_FOR_LOG_SCALE = {
+    "HC (global)",
+    "UTR",
+    "HC",
+}
+
+def label_from_file_name(file_name: str) -> str:
+    """Map a file_name to a display label using EXPERIMENT_LABELS."""
+    for key, label in EXPERIMENT_LABELS.items():
+        if key in file_name:
+            return label
+    return file_name  # fallback: show raw name
+
+
+# -----------------------------
 # Load & prepare data
 # -----------------------------
 df = pd.read_csv(csv_path)
 
-methods = [
-    "SeperateExtremesSum",
-    "Afterwards",
-    "NoExtremePreservation",
-    # "NoExtremePreservation Global",
-    "base_case",
-    # "demandoveravailabilities",
-    "UTR",
-    "DynamicProgramming"
-    
-]
+# Derive display label from file_name
+df["label"] = df["file_name"].apply(label_from_file_name)
 
-methods_on_for_log_scale = [
-    "NoExtremePreservation",
-    "UTR",
-    "NoExtremePreservation Global",
-]
+# Keep only experiments that appear in EXPERIMENT_LABELS
+known_labels = set(EXPERIMENT_LABELS.values())
+df = df[df["label"].isin(known_labels)]
 
-df = df[df["method"].isin(methods)]
-# Clean up method names if needed
-df['method'] = df['method'].str.strip()
-
-df.loc[df["method"] == "SeperateExtremesSum", "method"] = "SeperateExtremes"
-
-df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT
-df["total_cost"] = (
-    df["investment_cost"]
-    + df["true_operational_cost"]
-    - df["ens_cost"]   # operational cost already includes ENS; add explicit ENS cost
-    + df["ens_cost"]
-)
-# Simpler: total = investment + operational (which includes ENS implicitly) + explicit ENS penalty
-# Based on original script: total_regret = ens_cost + operational_cost_without_ens + investment_cost
-#   where operational_cost_without_ens = true_operational_cost - ens_cost
-# So: total_regret = true_operational_cost + investment_cost  (ens_cost cancels out, then re-added)
-# Actually from original: total = (true_op - ens_cost) + ens_cost + investment = true_op + investment
-# But that's just true_op + investment. Let's stay consistent with original script:
 df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT
 df["operational_cost_without_ens"] = df["true_operational_cost"] - df["ens_cost"]
 df["total_regret"] = df["ens_cost"] + df["operational_cost_without_ens"] + df["investment_cost"]
 
-# Baseline: 8760 clusters (one row, no method ambiguity assumed)
 baseline_row = df[df["num_clusters"] == 8760]
 assert len(baseline_row) == 1, f"Expected 1 baseline row, got {len(baseline_row)}"
 baseline_value = baseline_row["total_regret"].values[0]
 
 df["relative_regret"] = (df["total_regret"] - baseline_value) * 100 / baseline_value
 
-# Exclude baseline from line plots (it's a single point at 8760, no line to draw)
 plot_df = df[df["num_clusters"] != 8760].copy()
 
-methods = sorted(plot_df["method"].unique())
-# x_vals = sorted(plot_df["num_clusters"].unique())
+labels = sorted(plot_df["label"].unique())
 x_vals = list(range(0, 8760, 1000))
 
-# Colour palette — one colour per method
 colors = plt.cm.tab10.colors
-method_colors = {m: colors[i % len(colors)] for i, m in enumerate(methods)}
-
-other_methods = [m for m in methods if m not in methods_on_for_log_scale]
+label_colors = {lbl: colors[i % len(colors)] for i, lbl in enumerate(labels)}
 
 # -----------------------------
-# Figure: two-panel layout
-# Main panel  — all methods except NoExtremePreservation
-# Inset panel — all methods including NoExtremePreservation (log scale)
+# Plot
 # -----------------------------
 fig, (ax_main, ax_log) = plt.subplots(
     1, 2,
@@ -89,63 +85,42 @@ fig, (ax_main, ax_log) = plt.subplots(
     gridspec_kw={"width_ratios": [2, 1]},
 )
 
-# Determine y-limit based only on non-log-scale methods
 y_max = plot_df[
-    ~plot_df["method"].isin(methods_on_for_log_scale)
+    ~plot_df["label"].isin(METHODS_ON_FOR_LOG_SCALE)
 ]["relative_regret"].max()
 
-# --- Main panel ---
-for method in methods:
-    sub = plot_df[plot_df["method"] == method].sort_values("num_clusters")
+for ax, use_log in [(ax_main, False), (ax_log, True)]:
+    for lbl in labels:
+        sub = plot_df[plot_df["label"] == lbl].sort_values("num_clusters")
+        is_log_only = lbl in METHODS_ON_FOR_LOG_SCALE
+        ax.plot(
+            sub["num_clusters"],
+            sub["relative_regret"],
+            marker="o",
+            label=lbl,
+            color=label_colors[lbl],
+            linewidth=2,
+            markersize=6 if not use_log else 5,
+            linestyle="--" if is_log_only else "-",
+            alpha=0.7 if is_log_only else 1.0,
+        )
 
-    ax_main.plot(
-        sub["num_clusters"],
-        sub["relative_regret"],
-        marker="o",
-        label=method,
-        color=method_colors[method],
-        linewidth=2,
-        markersize=6,
-        linestyle="--" if method in methods_on_for_log_scale else "-",
-        alpha=0.7 if method in methods_on_for_log_scale else 1.0,
-    )
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
+    ax.set_xlabel("Number of clusters", fontsize=12)
+    ax.set_xticks(x_vals)
+    ax.tick_params(axis="x", rotation=45)
+    ax.legend(title="Method", fontsize=9 if use_log else 10)
+    ax.grid(True, alpha=0.3)
 
-ax_main.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
-ax_main.set_xlabel("Number of clusters", fontsize=12)
 ax_main.set_ylabel("Relative regret vs. baseline (%)", fontsize=12)
 ax_main.set_title("Relative regret (linear scale)", fontsize=13, fontweight="bold")
-ax_main.set_xticks(x_vals)
 ax_main.set_ylim(top=y_max, bottom=-1)
-# ax_main.set_ylim(top=100, bottom=-1)
-ax_main.legend(title="Method", fontsize=10)
-ax_main.grid(True, alpha=0.3)
 
-# --- Log panel (all methods incl. No EP) ---
-for method in methods:
-    sub = plot_df[plot_df["method"] == method].sort_values("num_clusters")
-    # log scale needs positive values; shift so minimum > 0
-    ax_log.plot(
-        sub["num_clusters"],
-        sub["relative_regret"],
-        marker="o",
-        label=method,
-        color=method_colors[method],
-        linewidth=2,
-        markersize=5,
-        linestyle="--" if method in methods_on_for_log_scale else "-",
-    )
-
-ax_log.axhline(0, color="black", linewidth=0.8, linestyle="--", alpha=0.5)
-ax_log.set_yscale("symlog", linthresh=10)   # symlog handles negative + large positive
+ax_log.set_yscale("symlog", linthresh=10)
 ax_log.set_ylim(bottom=-1)
 ax_log.yaxis.set_major_formatter(mticker.ScalarFormatter())
-ax_log.set_xlabel("Number of clusters", fontsize=12)
 ax_log.set_ylabel("Relative regret (%, symlog scale)", fontsize=12)
 ax_log.set_title("All methods\n(symlog scale)", fontsize=13, fontweight="bold")
-ax_log.set_xticks(x_vals)
-ax_log.tick_params(axis="x", rotation=45)
-ax_log.legend(title="Method", fontsize=9)
-ax_log.grid(True, alpha=0.3)
 
 plt.tight_layout()
 out_path = output_dir / "relative_regret_vs_clusters.png"
@@ -154,4 +129,4 @@ plt.close()
 
 print(f"Saved to {out_path}")
 print("\nRelative regret values:")
-print(df[["method", "num_clusters", "relative_regret"]].to_string(index=False))
+print(df[["label", "num_clusters", "relative_regret"]].to_string(index=False))

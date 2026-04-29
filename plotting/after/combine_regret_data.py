@@ -153,24 +153,37 @@ if not csv_files:
 
 df = pd.concat([pd.read_csv(f) for f in csv_files], ignore_index=True)
 
+# Keep only the last run per (file_name, calc_ens) — earlier rows are buggy reruns
+df = df.groupby(["file_name", "calc_ens"], sort=False).last().reset_index()
+
 # Drop unwanted columns (ignore if already absent)
 df.drop(columns=[c for c in COLS_TO_DROP if c in df.columns], inplace=True)
 
-# Separate base runs and ENS runs, then merge
+# df["calc_ens"] = df["calc_ens"].map({"true": True, "false": False})
+
 df_base = df[df["calc_ens"] == False].copy()
 df_ens  = df[df["calc_ens"] == True].copy()
+
+
+df_base = df_base.groupby("file_name", sort=False).last().reset_index()
+df_ens  = df_ens.groupby("file_name", sort=False).last().reset_index()
 
 ens_only_cols = ["energy_not_served"]
 merge_keys    = ["method", "num_clusters"]
 
+# Strip "ens_" prefix so file_name matches the base run
+df_ens["file_name"] = df_ens["file_name"].str.removeprefix("ens_")
+
+# Keep only the last ENS run per file_name
+df_ens = df_ens.groupby("file_name", sort=False).last().reset_index()
+
+df_base = df_base.drop(columns=["energy_not_served"], errors="ignore")
+
 df_merged = df_base.merge(
-    df_ens[merge_keys + ens_only_cols],
-    on=merge_keys,
+    df_ens[["file_name"] + ens_only_cols],
+    on="file_name",
     how="left",
-    suffixes=("_drop", ""),
 )
-drop_cols = [c for c in df_merged.columns if c.endswith("_drop")]
-df_merged.drop(columns=drop_cols, inplace=True)
 
 df_merged.loc[
     df_merged["file_name"].str.contains("demandoveravailabilities"),
@@ -219,9 +232,11 @@ df_merged["true_operational_cost"] = true_op_costs
 inv_df = pd.DataFrame(investment_rows)
 df_final = pd.concat([df_merged.reset_index(drop=True), inv_df.reset_index(drop=True)], axis=1)
 
-print(df_final[df_final["file_name"].str.contains("global", case=False, na=False)])
 df_final.loc[df_final["file_name"].str.contains("global", case=False, na=False), "method"] = "NoExtremePreservation Global"
 df_final = df_final.drop_duplicates()
+
+df_final.loc[df_final["num_clusters"] == 8760, "method"] = "base_case"
+df_final.loc[df_final["num_clusters"] == 8760, "file_name"] = "base_case"
 
 # ── Save ──────────────────────────────────────────────────────────────────────
 output_file.parent.mkdir(parents=True, exist_ok=True)
