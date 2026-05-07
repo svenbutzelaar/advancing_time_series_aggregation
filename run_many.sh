@@ -35,7 +35,7 @@ for n in $(seq 500 500 8760)
 do
     sbatch run.sh \
         --n_prime=$n \
-        --extreme_preservation=SeperateExtremesSum \
+        --extreme_preservation=NoExtremePreservation \
         --clustering_method=PerProfile
 done
 

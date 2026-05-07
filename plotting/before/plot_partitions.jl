@@ -97,7 +97,6 @@ if config.extreme_preservation != NoExtremePreservation
     )) 
 end
     
-
 # ----------------------------
 # Load partitions
 # ----------------------------
@@ -107,12 +106,13 @@ df_partitions = DataFrame(DBInterface.execute(
     """
     SELECT 
         asset AS profile_name,
+        specification,
         partition
     FROM assets_rep_periods_partitions
     WHERE 
         rep_period = $rep_period
         AND year = $year
-        AND specification = 'explicit'
+        AND specification IN ('explicit', 'uniform')
         AND asset IN ('NL_E_Demand',
                       'NL_Solar',
                       'NL_Wind_Offshore',
@@ -120,14 +120,36 @@ df_partitions = DataFrame(DBInterface.execute(
     """
 ))
 
+# Total timesteps for this rep_period/year — needed to expand uniform partitions
+n_timesteps = DataFrame(DBInterface.execute(
+    connection,
+    """
+    SELECT COUNT(*) AS n
+    FROM profiles_rep_periods
+    WHERE rep_period = $rep_period
+      AND year = $year
+      AND profile_name = 'NL_E_Demand'
+      AND value IS NOT NULL
+    """
+)).n[1]
 
 # Convert partition string to Vector{Int}
-function parse_partition_string(s)
-    parse.(Int, split(s, ";"))
+# - explicit: "4;2;4;1;..."  → parse each element directly
+# - uniform:  "4"            → repeat block_size across all n_timesteps
+function parse_partition_string(s, specification, n_timesteps)
+    if specification == "explicit"
+        return parse.(Int, split(s, ";"))
+    else  # uniform
+        block_size = parse(Int, strip(s))
+        n_full, remainder = divrem(n_timesteps, block_size)
+        clusters = fill(block_size, n_full)
+        remainder > 0 && push!(clusters, remainder)
+        return clusters
+    end
 end
 
 partition_dict = Dict(
-    row.profile_name => parse_partition_string(row.partition)
+    row.profile_name => parse_partition_string(row.partition, row.specification, n_timesteps)
     for row in eachrow(df_partitions)
 )
 

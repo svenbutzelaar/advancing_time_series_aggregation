@@ -34,7 +34,7 @@ tables_to_export = [
     # "flows_profiles",
     "flows_rep_periods_partitions",
     "profiles_rep_periods",
-    "profiles_timeframe",
+    # "profiles_timeframe",
     "rep_periods_data",
     "rep_periods_mapping",
     "timeframe_data",

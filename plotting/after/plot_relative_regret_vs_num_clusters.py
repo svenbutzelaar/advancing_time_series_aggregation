@@ -22,14 +22,29 @@ EXPERIMENT_LABELS = {
     # "demandoveravailabilities": "Demand/Avail.",
     "utr":                       "UTR",
     # "global_NoExtremePreservation": "HC (global)",
+    # "perprofile_NoExtremePreservation": "HC (fully flexible)",
     "perlocation_NoExtremePreservation": "HC",
     "perlocation_SeperateExtremesSum":   "EAC",
     "perlocation_Afterwards":   "PEC",
-    "perlocation_DynamicProgramming_hp":    "DP",
+    # "perlocation_DynamicProgramming_hp":    "DP",
     # "perlocation_DynamicProgramming_s672":    "DP (672)",
     # "perlocation_DynamicProgramming_s2688":    "DP (2688)",
     "base_case":                 "Base case",
 }
+
+LEGEND_ORDER = [
+    "UTR",
+    "HC",
+    "HC (global)",
+    "HC (fully flexible)",
+    "PEC",
+    "EAC",
+    "DP"
+]
+
+legend_names = [l for l in LEGEND_ORDER if l in EXPERIMENT_LABELS.values()]
+
+assert len(set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)) == 0, f"You missed defining the order of the labels: {set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)}"
 
 # Which labels should appear dashed + faded in the main panel
 METHODS_ON_FOR_LOG_SCALE = {
@@ -70,7 +85,7 @@ df["relative_regret"] = (df["total_regret"] - baseline_value) * 100 / baseline_v
 
 plot_df = df[df["num_clusters"] != 8760].copy()
 
-labels = sorted(plot_df["label"].unique())
+labels = [l for l in LEGEND_ORDER if l in plot_df["label"].unique()]
 x_vals = list(range(0, 8760, 1000))
 
 colors = plt.cm.tab10.colors
@@ -101,7 +116,7 @@ for ax, use_log in [(ax_main, False), (ax_log, True)]:
             color=label_colors[lbl],
             linewidth=2,
             markersize=6 if not use_log else 5,
-            linestyle="--" if is_log_only else "-",
+            # linestyle="--" if is_log_only else "-",
             alpha=0.7 if is_log_only else 1.0,
         )
 
@@ -112,7 +127,7 @@ for ax, use_log in [(ax_main, False), (ax_log, True)]:
     ax.legend(title="Method", fontsize=9 if use_log else 10)
     ax.grid(True, alpha=0.3)
 
-ax_main.set_ylabel("Relative regret vs. baseline (%)", fontsize=12)
+ax_main.set_ylabel("Relative regret (%)", fontsize=12)
 ax_main.set_title("Relative regret (linear scale)", fontsize=13, fontweight="bold")
 ax_main.set_ylim(top=y_max, bottom=-1)
 
@@ -120,7 +135,7 @@ ax_log.set_yscale("symlog", linthresh=10)
 ax_log.set_ylim(bottom=-1)
 ax_log.yaxis.set_major_formatter(mticker.ScalarFormatter())
 ax_log.set_ylabel("Relative regret (%, symlog scale)", fontsize=12)
-ax_log.set_title("All methods\n(symlog scale)", fontsize=13, fontweight="bold")
+ax_log.set_title("Relative regret\n(symlog scale)", fontsize=13, fontweight="bold")
 
 plt.tight_layout()
 out_path = output_dir / "relative_regret_vs_clusters.png"

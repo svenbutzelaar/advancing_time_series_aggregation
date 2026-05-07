@@ -6,7 +6,7 @@ from pathlib import Path
 # -----------------------------
 # Settings
 # -----------------------------
-csv_path = Path("plotting/csv_data/regret_v1.csv")
+csv_path = Path("plotting/csv_data/regret.csv")
 output_dir = Path("plots/regret")
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -18,7 +18,7 @@ ENS_COST_PER_UNIT = 68887
 df = pd.read_csv(csv_path)
 
 # Filter to SeperateSum only
-df = df[df["method"].str.strip() == "SeperateExtremesSum"].copy()
+df = df[df["file_name"].str.contains("perlocation_SeperateExtremesSum")].copy()
 
 # Cost components
 df["ens_cost"] = df["energy_not_served"] * ENS_COST_PER_UNIT
@@ -55,9 +55,9 @@ ax.plot(
     x,
     total,
     color="black",
-    linewidth=2.5,
-    linestyle="--",
-    marker="o",
+    linewidth=1,
+    linestyle="-",
+    marker=".",
     markersize=6,
     label="Total cost",
     zorder=5,
@@ -65,8 +65,8 @@ ax.plot(
 
 ax.set_xlabel("Number of clusters", fontsize=12)
 ax.set_ylabel("Cost (€)", fontsize=12)
-ax.set_title("Cost breakdown — SeperateSum", fontsize=13, fontweight="bold")
-ax.set_xticks(x)
+ax.set_title("Cost breakdown — EAC", fontsize=13, fontweight="bold")
+ax.set_xticks(list(range(0, 8760, 1000)))
 ax.tick_params(axis="x", rotation=45)
 ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda val, _: f"€{val:,.0f}"))
 ax.legend(title="Cost component", fontsize=10)
