@@ -9,11 +9,63 @@ csv_path = Path("plotting/csv_data/regret.csv")
 output_dir = Path("plots/regret")
 output_dir.mkdir(parents=True, exist_ok=True)
 
+EXPERIMENT_LABELS = {
+    # "demandoveravailabilities": "Demand/Avail.",
+    "utr":                       "UTR",
+    "global_NoExtremePreservation": "HC (global)",
+    "perprofile_NoExtremePreservation": "HC (fully flexible)",
+    "perlocation_NoExtremePreservation": "HC",
+    # "perlocation_SeperateExtremesSum":   "EAC",
+    # "perlocation_Afterwards":   "PEC",
+    # "perlocation_DynamicProgramming_hp":    "DP",
+    # "perlocation_DynamicProgramming_s672":    "DP (672)",
+    # "perlocation_DynamicProgramming_s2688":    "DP (2688)",
+    "base_case":                 "Base case",
+}
+
+LEGEND_ORDER = [
+    "UTR",
+    "HC",
+    "HC (global)",
+    "HC (fully flexible)",
+    "PEC",
+    "EAC",
+    "DP"
+]
+
+legend_names = [l for l in LEGEND_ORDER if l in EXPERIMENT_LABELS.values()]
+
+assert len(set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)) == 0, f"You missed defining the order of the labels: {set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)}"
+
+# Which labels should appear dashed + faded in the main panel
+METHODS_ON_FOR_LOG_SCALE = {
+    "HC (global)",
+    "UTR",
+    "HC",
+}
+
+def label_from_file_name(file_name: str) -> str:
+    """Map a file_name to a display label using EXPERIMENT_LABELS."""
+    for key, label in EXPERIMENT_LABELS.items():
+        if key in file_name:
+            return label
+    return file_name  # fallback: show raw name
+
+
 # -----------------------------
 # Load & prepare data
 # -----------------------------
 df = pd.read_csv(csv_path)
-df["method"] = df["method"].str.strip()
+
+# Derive display label from file_name
+df["label"] = df["file_name"].apply(label_from_file_name)
+
+# Keep only experiments that appear in EXPERIMENT_LABELS
+known_labels = set(EXPERIMENT_LABELS.values())
+df = df[df["label"].isin(known_labels)]
+
+df["runtime"] = df["t_solve"]
+df["method"] = df["label"]
 
 # Separate baseline (8760) from clustered runs
 baseline = df[df["num_clusters"] == 8760].copy()
