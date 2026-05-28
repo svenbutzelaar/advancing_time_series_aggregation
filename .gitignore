@@ -68,7 +68,7 @@ venv.bak/
 Thumbs.db
 
 # Data files
-*.csv
+# *.csv
 *.xlsx
 *.json
 data/

@@ -1,0 +1,3 @@
+method,num_clusters,file_name,calc_ens,t_clustering,t_create_model,t_solve,investment_cost_assets,investment_cost_storage_energy_assets,annualized_cost_assets,salvage_value_assets,investment_cost_flows,operational_cost_flows,fuel_cost_flows,total_variable_cost_flows,annualized_cost_flows,salvage_value_flows,energy_not_served
+DynamicProgramming,2600,ward_k2600_perlocation_DynamicProgramming_hp0.95_lp0.05,false,141.42935013771057,49.90091514587402,540.2029640674591,2.3962740530344997e7,0.0,2.3962740530344997e7,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
+DynamicProgramming,2600,ens_ward_k2600_perlocation_DynamicProgramming_hp0.95_lp0.05,true,0.0,56.1373610496521,61.30177593231201,,0.0,,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,12.837474224903012

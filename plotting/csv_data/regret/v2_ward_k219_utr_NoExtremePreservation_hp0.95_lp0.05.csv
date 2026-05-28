@@ -1,0 +1,3 @@
+method,num_clusters,file_name,calc_ens,t_clustering,t_create_model,t_solve,investment_cost_assets,investment_cost_storage_energy_assets,annualized_cost_assets,salvage_value_assets,investment_cost_flows,operational_cost_flows,fuel_cost_flows,total_variable_cost_flows,annualized_cost_flows,salvage_value_flows,energy_not_served
+NoExtremePreservation,219,ward_k219_utr_NoExtremePreservation_hp0.95_lp0.05,false,0.05155682563781738,11.21136212348938,3.141010046005249,2.3962740530344997e7,0.0,2.3962740530344997e7,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
+NoExtremePreservation,219,ens_ward_k219_utr_NoExtremePreservation_hp0.95_lp0.05,true,0.0,52.060056924819946,68.46708297729492,,0.0,,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,12942.656006748095

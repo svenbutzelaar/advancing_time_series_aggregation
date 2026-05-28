@@ -18,12 +18,22 @@
 #     PerLocation
 #     PerProfile
 
+# allemaal op 500 500 4000
+
+# slechte 500 4000 8760
+
+# gekke 100 100 3000
+
+# lowvar solar alpha * value
+# CASE WHEN t.partition::integer > 4 THEN t.partition::integer ELSE 1 END::varchar(255) AS partition, for basecase
+
+
 # NumberClusters 87
 #     seq 100 100 8760
 
-# 87 * 3 * (1 + 2 * 4) = 
-# 87 * 27 =
-# 2349
+# 8 * 3 * (1 + 2 * 4) = 
+# 8 * 27 =
+# 234
 
 
 # -------------------------------
