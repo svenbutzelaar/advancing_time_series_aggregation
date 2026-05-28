@@ -32,7 +32,6 @@ for (name, alpha) in [("low_var", 0.5), ("high_var", 2.0)]
                 CASE
                     WHEN p.profile_name LIKE '%Demand%'
                       OR p.profile_name LIKE '%Wind%'
-                      OR p.profile_name LIKE '%Solar%'
                     THEN GREATEST(0.0, LEAST(1.0,
                             $alpha * (p.value - m.mean_value) + m.mean_value
                          ))

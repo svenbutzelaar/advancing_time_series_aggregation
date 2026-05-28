@@ -310,7 +310,7 @@ DuckDB.query(
     SELECT
         t.name AS asset,
         t.year,
-        CASE WHEN t.partition::integer > 4 THEN t.partition::integer ELSE 1 END::varchar(255) AS partition,
+        1 AS partition,
         rep_periods_data.rep_period,
         'uniform' AS specification,
     FROM t_asset_yearly AS t

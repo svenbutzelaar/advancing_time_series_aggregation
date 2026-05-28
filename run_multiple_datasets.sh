@@ -1,120 +1,90 @@
 #!/bin/bash
 
+# first 
+# run  500 500 4000
+# later if necaserry
+# experiments that have large error on hig n: 500 4000 8760
+# finer detail needed: 100 100 3000
 
-# Dataset 3
-#     BaseDataset
-#     LowVar
-#     HighVar
+# ============================================================
+# Experiment sweep script
+# ============================================================
 
-# ExtremePreservation 4
-#     NoExtremePreservation
-#     Afterwards
-#     SeperateExtremesSum
-#     DynamicProgramming
+# Datasets (3)
+#   BaseDataset
+#   LowVar
+#   HighVar
 
+# ExtremePreservation (3)
+#   NoExtremePreservation
+#   Afterwards
+#   SeperateExtremesSum
 
-# ClusteringMethod 2
-#     UTR ----
-#     PerLocation
-#     PerProfile
+# ClusteringMethod (2)
+#   PerLocation
+#   PerProfile
 
-# allemaal op 500 500 4000
+# Total combinations:
+#   3 datasets
+# * 3 extreme preservation methods
+# * 2 clustering methods
+# = 18 experiment groups
+#
+#
+# ============================================================
 
-# slechte 500 4000 8760
+DATASETS=(
+    "BaseDataset"
+    "LowVar"
+    "HighVar"
+)
 
-# gekke 100 100 3000
+EXTREME_PRESERVATIONS=(
+    "NoExtremePreservation"
+    "Afterwards"
+    "SeperateExtremesSum"
+)
 
-# lowvar solar alpha * value
-# CASE WHEN t.partition::integer > 4 THEN t.partition::integer ELSE 1 END::varchar(255) AS partition, for basecase
+CLUSTERING_METHODS=(
+    "PerLocation"
+    "PerProfile"
+)
 
-
-# NumberClusters 87
-#     seq 100 100 8760
-
-# 8 * 3 * (1 + 2 * 4) = 
-# 8 * 27 =
-# 234
-
-
-# -------------------------------
-# NoExtremePreservation: step 1000
-# -------------------------------
-for n in $(seq 2000 1000 8760)
+# ------------------------------------------------------------
+# Main sweep: 500 -> 4000
+# ------------------------------------------------------------
+for dataset in "${DATASETS[@]}"
 do
-    sbatch run.sh --n_prime=$n --extreme_preservation=NoExtremePreservation
-done
-for n in $(seq 100 100 2000)
-do
-    sbatch run.sh --n_prime=$n --extreme_preservation=NoExtremePreservation
-done
+    for n in $(seq 500 500 4000)
+    do
+        for ep in "${EXTREME_PRESERVATIONS[@]}"
+        do
+            for cm in "${CLUSTERING_METHODS[@]}"
+            do
+                echo "Submitting: dataset=$dataset ep=$ep cm=$cm n=$n"
 
-# -------------------------------
-# Afterwards: step 500
-# -------------------------------
-for n in $(seq 500 500 8760)
-do
-    sbatch run.sh --n_prime=$n --extreme_preservation=Afterwards
-done
+                sbatch run.sh \
+                    --n_prime=$n \
+                    --dataset=$dataset \
+                    --extreme_preservation=$ep \
+                    --clustering_method=$cm
+            done
+        done
+    done
 
-# -------------------------------
-# SeperateExtremesSum: step 100
-# -------------------------------
-for n in $(seq 100 100 8760)
-do
-    sbatch run.sh --n_prime=$n --extreme_preservation=SeperateExtremesSum
-done
+    # --------------------------------------------------------
+    # UTR reference experiments
+    # --------------------------------------------------------
+    for n in \
+        4380 2920 2190 1752 \
+        1460 1095 876 730
+    do
+        echo "Submitting UTR: dataset=$dataset n=$n"
 
-# -------------------------------
-# SeperateExtremesSum: step 500 + extra flag
-# -------------------------------
-for n in $(seq 500 500 8760)
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=NoExtremePreservation \
-        --clustering_method=PerProfile
-done
-
-sbatch run.sh --n_prime=8760 --extreme_preservation=NoExtremePreservation
-
-for n in \
-    4380 2920 2190 1752 \
-    1460 1095 876 730
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=NoExtremePreservation \
-        --clustering_method=UTR
-done
-
-for n in $(seq 500 500 6000)
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=NoExtremePreservation \
-        --clustering_method=Global
-done
-
-for n in $(seq 100 100 4501)
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=DynamicProgramming
-done
-
-
-for n in $(seq 600 100 1100)
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=DynamicProgramming \
-        --max_block_size=672
-done
-
-for n in $(seq 600 100 1100)
-do
-    sbatch run.sh \
-        --n_prime=$n \
-        --extreme_preservation=DynamicProgramming \
-        --max_block_size=2688
+        sbatch run.sh \
+            --n_prime=$n \
+            --dataset=$dataset \
+            --extreme_preservation=NoExtremePreservation \
+            --clustering_method=UTR
+    done
 done

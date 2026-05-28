@@ -14,6 +14,7 @@ end
     PerProfile
     DemandOverAvailabilities
     Global
+    FullResolution
 end
 
 @enum Dataset begin
