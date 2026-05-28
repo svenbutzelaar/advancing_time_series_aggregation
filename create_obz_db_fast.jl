@@ -25,10 +25,9 @@ if isfile(database_name)
     error("Database file '$database_name' already exists. Please remove it or use a different name.")
 end
 
-base_db_file = "db_files/base_db.db"
+base_db_file = dataset_db_file(config.dataset)
 cp(base_db_file, database_name; force = true)
 connection = DBInterface.connect(DuckDB.DB, database_name)
-
 
 if !create_obz_invest_full_resolution && config.clustering_method != UTR
     cluster_partitions!(connection, config)
@@ -37,6 +36,5 @@ elseif config.clustering_method == UTR
 end
 
 TEM.populate_with_defaults!(connection)
-
 
 close(connection)

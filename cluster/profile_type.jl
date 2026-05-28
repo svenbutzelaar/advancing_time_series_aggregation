@@ -1,9 +1,9 @@
-
 @enum ProfileType begin
     Demand
     Solar
     WindOnshore
     WindOffshore
+    ENS
     Unknown
 end
 
@@ -18,6 +18,8 @@ function getProfileType(profile_name::AbstractString)::ProfileType
         return WindOnshore
     elseif occursin("wind_offshore", name) || occursin("offshore", name)
         return WindOffshore
+    elseif occursin("ens", name)
+        return ENS
     else
         return Unknown
     end

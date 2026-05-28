@@ -19,7 +19,7 @@ if isfile(database_name)
     error("Database file '$database_name' already exists. Please remove it or use a different name.")
 end
 
-base_db_file = "db_files/base_db.db"
+base_db_file = dataset_db_file(config.dataset)
 cp(base_db_file, database_name; force = true)
 connection = DBInterface.connect(DuckDB.DB, database_name)
 

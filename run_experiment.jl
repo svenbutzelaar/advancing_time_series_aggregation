@@ -29,11 +29,6 @@ function create_cluster_partitions_for_experiment(connection, config)
             connection,
             "UPDATE assets_rep_periods_partitions
             SET partition = $(partition)
-            WHERE 
-                       LOWER(asset) LIKE '%wind_onshore%'
-                    OR LOWER(asset) LIKE '%wind_offshore%'
-                    OR LOWER(asset) LIKE '%solar%'
-                    OR LOWER(asset) LIKE '%e_demand%'
             ",
         )
 
@@ -41,15 +36,6 @@ function create_cluster_partitions_for_experiment(connection, config)
             connection,
             "UPDATE flows_rep_periods_partitions
             SET partition = $(partition)
-            WHERE 
-                       LOWER(from_asset) LIKE '%wind_onshore%'
-                    OR LOWER(from_asset) LIKE '%wind_offshore%'
-                    OR LOWER(from_asset) LIKE '%solar%'
-                    OR LOWER(from_asset) LIKE '%e_demand%'
-                    OR LOWER(to_asset) LIKE '%wind_onshore%'
-                    OR LOWER(to_asset) LIKE '%wind_offshore%'
-                    OR LOWER(to_asset) LIKE '%solar%'
-                    OR LOWER(to_asset) LIKE '%e_demand%'
             ",
         )
     end
@@ -77,7 +63,8 @@ function run_experiment(config, calc_ens::Bool; base_energy_problem = nothing, b
     else
         local db = "db_files/$(experiment_name(config)).db"
         rm(db; force = true)
-        cp("db_files/base_db.db", db; force = true)
+        base_db_file = dataset_db_file(config.dataset)
+        cp(base_db_file, db; force = true)
         conn_setup = DBInterface.connect(DuckDB.DB, db)
         t0 = time()
         create_cluster_partitions_for_experiment(conn_setup, config)

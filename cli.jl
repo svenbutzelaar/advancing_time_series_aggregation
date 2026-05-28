@@ -6,6 +6,7 @@ function main()
 
     ep = getfield(Main, Symbol(args["extreme_preservation"]))::ExtremePreservation
     cm = getfield(Main, Symbol(args["clustering_method"]))::ClusteringMethod
+    ds = getfield(Main, Symbol(args["dataset"]))::Dataset
 
     config = ClusteringConfig(
         calc_stats = args["calc_stats"],
@@ -15,6 +16,7 @@ function main()
         high_percentile = args["high_percentile"],
         low_percentile = args["low_percentile"],
         max_block_size = args["max_block_size"],
+        dataset = ds,
     )
 
     script = args["script"]

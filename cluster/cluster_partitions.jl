@@ -6,20 +6,28 @@ using DuckDB
 include("cluster_ward.jl")
 include("profile_type.jl")
 include("config.jl")
+include("common_resolution.jl")
 
 """
-    cluster_partitions!(
-        conn,
-        config::ClusteringConfig = ClusteringConfig()
-    )
-
-Runs Ward clustering on profile tables stored in DuckDB.
+    cluster_partitions!(conn, config::ClusteringConfig = ClusteringConfig())
+ 
+Runs Ward clustering on profile tables stored in DuckDB, then propagates the
+common highest resolution for each location to every asset and flow that has
+no time-series profile of its own.
+ 
+After this function returns:
+- Profiled assets keep the partition produced by the chosen clustering method.
+- Non-profiled assets (generators, nuclear, etc.) receive the common highest
+  resolution of all profiled assets at the same location.
+- Intra-location flows receive that same location-level common resolution.
+- Inter-location flows (country-to-country, via balance nodes) receive the
+  common highest resolution of the two connected locations' common resolutions.
 """
 function cluster_partitions!(
     conn,
     config::ClusteringConfig = ClusteringConfig(),
 )
-
+ 
     results = DataFrame(
         asset = String[],
         rep_period = Int64[],
@@ -30,7 +38,7 @@ function cluster_partitions!(
         year = Int64[],
         location = String[],
     )
-
+ 
     stats = DataFrame(
         asset = String[],
         location = String[],
@@ -39,11 +47,11 @@ function cluster_partitions!(
         errors = Vector{Float64}[],
         ldc_errors = Vector{Float64}[],
     )
-
+ 
     # =========================
     # LOAD DATA
     # =========================
-
+ 
     df = DataFrame(DBInterface.execute(
         conn,
         """
@@ -62,11 +70,11 @@ function cluster_partitions!(
         ORDER BY profile_name, rep_period, year, timestep
         """
     ))
-
+ 
     # =========================
     # CLUSTERING
     # =========================
-
+ 
     if config.clustering_method == PerLocation
         cluster_partitions_per_location!(
             df, results, stats, config
@@ -88,22 +96,22 @@ function cluster_partitions!(
         println("No valid config.clustering_method: ", config.clustering_method)
         exit(1)
     end
-
+ 
     # =========================
     # OPTIONAL EXTREME UPDATE
     # =========================
-
+ 
     if config.extreme_preservation != NoExtremePreservation
         update_profiles_rep_periods_with_new_values!(conn, results)
     end
-
+ 
     # =========================
-    # UPDATE DATABASE TABLES
+    # UPDATE PROFILED ASSETS IN DATABASE
     # =========================
-
+ 
     tmp_table = "tmp_cluster_results"
     DuckDB.register_data_frame(conn, results, tmp_table)
-
+ 
     DBInterface.execute(conn,
         """
         UPDATE assets_rep_periods_partitions AS a
@@ -117,24 +125,15 @@ function cluster_partitions!(
             AND a.year   = r.year
         """
     )
-
-    DBInterface.execute(conn,
-        """
-        UPDATE flows_rep_periods_partitions AS f
-        SET
-            partition     = r.partition,
-            specification = r.specification
-        FROM $tmp_table AS r
-        WHERE
-            f.rep_period = r.rep_period
-            AND f.year   = r.year
-            AND (
-                f.from_asset = r.asset
-                OR f.to_asset = r.asset
-            )
-        """
-    )
-
+ 
+    # =========================
+    # COMPUTE COMMON HIGHEST RESOLUTION PER LOCATION
+    # AND PROPAGATE TO NON-PROFILED ASSETS AND FLOWS
+    # =========================
+ 
+    common_resolutions = compute_location_common_resolutions(results)
+    update_non_profiled_assets_and_flows!(conn, results, common_resolutions)
+ 
     DBInterface.execute(conn, "DROP VIEW IF EXISTS $tmp_table")
 end
 

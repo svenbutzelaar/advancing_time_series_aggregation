@@ -25,8 +25,10 @@ EXPERIMENT_LABELS = {
     # "perprofile_NoExtremePreservation": "HC (fully flexible)",
     "perlocation_NoExtremePreservation": "HC",
     "perlocation_SeperateExtremesSum":   "EAC",
+    # "perprofile_SeperateExtremesSum":   "EAC (fully flexible)",
     "perlocation_Afterwards":   "PEC",
-    # "perlocation_DynamicProgramming_hp":    "DP",
+    "perlocation_DynamicProgramming_hp":    "DP",
+    # "perprofile_DynamicProgramming":    "DP (fully flexible)",
     # "perlocation_DynamicProgramming_s672":    "DP (672)",
     # "perlocation_DynamicProgramming_s2688":    "DP (2688)",
     "base_case":                 "Base case",
@@ -39,7 +41,9 @@ LEGEND_ORDER = [
     "HC (fully flexible)",
     "PEC",
     "EAC",
-    "DP"
+    "EAC (fully flexible)",
+    "DP",
+    "DP (fully flexible)"
 ]
 
 legend_names = [l for l in LEGEND_ORDER if l in EXPERIMENT_LABELS.values()]
@@ -50,6 +54,7 @@ assert len(set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_nam
 METHODS_ON_FOR_LOG_SCALE = {
     "HC (global)",
     "UTR",
+    "EAC (fully flexible)",
     "HC",
 }
 
