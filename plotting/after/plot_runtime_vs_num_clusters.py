@@ -6,118 +6,273 @@ from pathlib import Path
 # Settings
 # -----------------------------
 csv_path = Path("plotting/csv_data/regret.csv")
-output_dir = Path("plots/regret")
+output_dir = Path("plots/runtime")
 output_dir.mkdir(parents=True, exist_ok=True)
 
+# -----------------------------
+# Experiment label mapping
+# -----------------------------
 EXPERIMENT_LABELS = {
-    # "demandoveravailabilities": "Demand/Avail.",
-    "utr":                       "UTR",
-    "global_NoExtremePreservation": "HC (global)",
-    "perprofile_NoExtremePreservation": "HC (fully flexible)",
+    "utr":                               "UTR",
     "perlocation_NoExtremePreservation": "HC",
-    # "perlocation_SeperateExtremesSum":   "EAC",
-    # "perlocation_Afterwards":   "PEC",
-    # "perlocation_DynamicProgramming_hp":    "DP",
-    # "perlocation_DynamicProgramming_s672":    "DP (672)",
-    # "perlocation_DynamicProgramming_s2688":    "DP (2688)",
-    "base_case":                 "Base case",
+    "perprofile_NoExtremePreservation":  "HC",
+    "perlocation_SeperateExtremesSum":   "EAC",
+    "perprofile_SeperateExtremesSum":    "EAC",
+    "perlocation_Afterwards":            "PEC",
+    "perprofile_Afterwards":             "PEC",
+    "perlocation_DynamicProgramming_hp": "DP",
+    "perprofile_DynamicProgramming_hp":  "DP",
+    "base_case":                         "Base case",
 }
 
-LEGEND_ORDER = [
-    "UTR",
-    "HC",
-    "HC (global)",
-    "HC (fully flexible)",
-    "PEC",
-    "EAC",
-    "DP"
-]
+LEGEND_ORDER = ["UTR", "HC", "PEC", "EAC", "DP"]
 
-legend_names = [l for l in LEGEND_ORDER if l in EXPERIMENT_LABELS.values()]
-
-assert len(set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)) == 0, f"You missed defining the order of the labels: {set(EXPERIMENT_LABELS.values()).difference(['Base case'] + legend_names)}"
-
-# Which labels should appear dashed + faded in the main panel
-METHODS_ON_FOR_LOG_SCALE = {
-    "HC (global)",
-    "UTR",
-    "HC",
+DATASET_VARIANTS = ["basedataset", "lowvar", "highvar"]
+DATASET_LABELS = {
+    "basedataset": "Base dataset",
+    "lowvar": "Low variance",
+    "highvar": "High variance",
 }
 
+SCOPES = ["perlocation", "perprofile"]
+SCOPE_LABELS = {
+    "perlocation": "Per location",
+    "perprofile": "Per profile",
+}
+
+# -----------------------------
+# Parsing helpers
+# -----------------------------
 def label_from_file_name(file_name: str) -> str:
-    """Map a file_name to a display label using EXPERIMENT_LABELS."""
     for key, label in EXPERIMENT_LABELS.items():
         if key in file_name:
             return label
-    return file_name  # fallback: show raw name
+    return file_name
+
+
+def scope_from_file_name(file_name: str):
+    if "perlocation" in file_name:
+        return "perlocation"
+    if "perprofile" in file_name:
+        return "perprofile"
+    if "utr" in file_name:
+        return "utr"
+    return None
+
+
+def dataset_from_file_name(file_name: str):
+    for ds in DATASET_VARIANTS:
+        if ds in file_name:
+            return ds
+    return None
 
 
 # -----------------------------
-# Load & prepare data
+# Load data
 # -----------------------------
 df = pd.read_csv(csv_path)
 
-# Derive display label from file_name
 df["label"] = df["file_name"].apply(label_from_file_name)
+df["scope"] = df["file_name"].apply(scope_from_file_name)
+df["dataset"] = df["file_name"].apply(dataset_from_file_name)
 
-# Keep only experiments that appear in EXPERIMENT_LABELS
+# Keep only known experiments
 known_labels = set(EXPERIMENT_LABELS.values())
-df = df[df["label"].isin(known_labels)]
+df = df[df["label"].isin(known_labels)].copy()
 
 df["runtime"] = df["t_solve"]
-df["method"] = df["label"]
 
-# Separate baseline (8760) from clustered runs
-baseline = df[df["num_clusters"] == 8760].copy()
+# Exclude baseline from plots
 plot_df = df[df["num_clusters"] != 8760].copy()
 
-methods = sorted(plot_df["method"].unique())
-x_vals = sorted(plot_df["num_clusters"].unique())
+# Duplicate UTR into both scopes
+utr_rows = plot_df[plot_df["scope"] == "utr"].copy()
 
+if not utr_rows.empty:
+    utr_perlocation = utr_rows.assign(scope="perlocation")
+    utr_perprofile = utr_rows.assign(scope="perprofile")
+
+    plot_df = pd.concat(
+        [
+            plot_df[plot_df["scope"] != "utr"],
+            utr_perlocation,
+            utr_perprofile,
+        ],
+        ignore_index=True,
+    )
+
+# -----------------------------
+# Colors
+# -----------------------------
 colors = plt.cm.tab10.colors
-method_colors = {m: colors[i % len(colors)] for i, m in enumerate(methods)}
+label_colors = {
+    lbl: colors[i % len(colors)]
+    for i, lbl in enumerate(LEGEND_ORDER)
+}
 
 # -----------------------------
-# Figure
+# Plot 1:
+# Runtime comparison between methods
 # -----------------------------
-fig, ax = plt.subplots(figsize=(10, 6))
+print("\nGenerating method comparison plots...")
 
-for method in methods:
-    sub = plot_df[plot_df["method"] == method].sort_values("num_clusters")
-    ax.plot(
-        sub["num_clusters"],
-        sub["runtime"],
-        marker="o",
-        label=method,
-        color=method_colors[method],
-        linewidth=2,
-        markersize=6,
-    )
+for scope in SCOPES:
+    for dataset in DATASET_VARIANTS:
 
-# Baseline as horizontal reference line
-if not baseline.empty:
-    baseline_runtime = baseline["runtime"].values[0]
+        sub = plot_df[
+            (plot_df["scope"] == scope)
+            & (plot_df["dataset"] == dataset)
+        ].copy()
+
+        if sub.empty:
+            print(
+                f"No data for scope={scope}, "
+                f"dataset={dataset} — skipping"
+            )
+            continue
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        labels_present = [
+            l for l in LEGEND_ORDER
+            if l in sub["label"].unique()
+        ]
+
+        for label in labels_present:
+
+            lsub = (
+                sub[sub["label"] == label]
+                .sort_values("num_clusters")
+            )
+
+            ax.plot(
+                lsub["num_clusters"],
+                lsub["runtime"],
+                marker="o",
+                linewidth=2,
+                markersize=6,
+                label=label,
+                color=label_colors[label],
+            )
+
+        ax.set_xlabel("Number of clusters", fontsize=12)
+        ax.set_ylabel("Runtime (seconds)", fontsize=12)
+
+        ax.set_title(
+            f"Runtime — {SCOPE_LABELS[scope]}, "
+            f"{DATASET_LABELS[dataset]}",
+            fontsize=13,
+            fontweight="bold",
+        )
+
+        ax.grid(True, alpha=0.3)
+        ax.legend(title="Method")
+
+        plt.tight_layout()
+
+        out_path = (
+            output_dir
+            / f"runtime_methods_{scope}_{dataset}.png"
+        )
+
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+
+        print(f"Saved: {out_path}")
+
+# -----------------------------
+# Plot 2:
+# Per-profile minus per-location
+# -----------------------------
+print("\nGenerating scope difference plots...")
+
+methods = ["HC", "PEC", "EAC", "DP"]
+
+for dataset in DATASET_VARIANTS:
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for method in methods:
+
+        loc = (
+            plot_df[
+                (plot_df["dataset"] == dataset)
+                & (plot_df["scope"] == "perlocation")
+                & (plot_df["label"] == method)
+            ][["num_clusters", "runtime"]]
+            .rename(columns={"runtime": "runtime_loc"})
+        )
+
+        prof = (
+            plot_df[
+                (plot_df["dataset"] == dataset)
+                & (plot_df["scope"] == "perprofile")
+                & (plot_df["label"] == method)
+            ][["num_clusters", "runtime"]]
+            .rename(columns={"runtime": "runtime_prof"})
+        )
+
+        merged = (
+            loc.merge(
+                prof,
+                on="num_clusters",
+                how="inner",
+            )
+            .sort_values("num_clusters")
+        )
+
+        if merged.empty:
+            continue
+
+        merged["difference"] = (
+            merged["runtime_prof"]
+            - merged["runtime_loc"]
+        )
+
+        ax.plot(
+            merged["num_clusters"],
+            merged["difference"],
+            marker="o",
+            linewidth=2,
+            markersize=6,
+            label=method,
+            color=label_colors[method],
+        )
+
     ax.axhline(
-        baseline_runtime,
+        0,
         color="black",
-        linewidth=1.5,
         linestyle="--",
-        alpha=0.7,
-        label=f"Baseline (8760 clusters, {baseline_runtime:.0f}s)",
+        linewidth=1,
+        alpha=0.6,
     )
 
-ax.set_xlabel("Number of clusters", fontsize=12)
-ax.set_ylabel("Runtime (seconds)", fontsize=12)
-ax.set_title("Runtime vs. Number of Clusters", fontsize=13, fontweight="bold")
-ax.set_xticks(x_vals)
-ax.legend(title="Method", fontsize=10)
-ax.grid(True, alpha=0.3)
+    ax.set_xlabel("Number of clusters", fontsize=12)
+    ax.set_ylabel(
+        "Runtime difference (seconds)",
+        fontsize=12,
+    )
 
-plt.tight_layout()
-out_path = output_dir / "runtime_vs_clusters.png"
-plt.savefig(out_path, dpi=150)
-plt.close()
+    ax.set_title(
+        "Per-profile − Per-location Runtime Difference\n"
+        f"{DATASET_LABELS[dataset]}",
+        fontsize=13,
+        fontweight="bold",
+    )
 
-print(f"Saved to {out_path}")
-print("\nRuntimes:")
-print(df[["method", "num_clusters", "runtime"]].sort_values(["method", "num_clusters"]).to_string(index=False))
+    ax.grid(True, alpha=0.3)
+    ax.legend(title="Method")
+
+    plt.tight_layout()
+
+    out_path = (
+        output_dir
+        / f"runtime_scope_difference_{dataset}.png"
+    )
+
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+
+    print(f"Saved: {out_path}")
+
+print("\nDone.")

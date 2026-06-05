@@ -15,10 +15,11 @@
 #   LowVar
 #   HighVar
 
-# ExtremePreservation (3)
+# ExtremePreservation (4)
 #   NoExtremePreservation
 #   Afterwards
 #   SeperateExtremesSum
+#   DynamicProgramming
 
 # ClusteringMethod (2)
 #   PerLocation
@@ -26,9 +27,9 @@
 
 # Total combinations:
 #   3 datasets
-# * 3 extreme preservation methods
+# * 4 extreme preservation methods
 # * 2 clustering methods
-# = 18 experiment groups
+# = 24 experiment groups
 #
 #
 # ============================================================
@@ -43,6 +44,7 @@ EXTREME_PRESERVATIONS=(
     "NoExtremePreservation"
     "Afterwards"
     "SeperateExtremesSum"
+    "DynamicProgramming"
 )
 
 CLUSTERING_METHODS=(
@@ -87,4 +89,46 @@ do
             --extreme_preservation=NoExtremePreservation \
             --clustering_method=UTR
     done
+
+    ep="NoExtremePreservation"
+    for n in $(seq 5000 1000 8000)
+    do  
+        for cm in "${CLUSTERING_METHODS[@]}"
+        do
+            echo "Submitting: dataset=$dataset ep=$ep cm=$cm n=$n"
+
+            sbatch run.sh \
+                --n_prime=$n \
+                --dataset=$dataset \
+                --extreme_preservation=$ep \
+                --clustering_method=$cm
+        done
+    done
+
+    ep="SeperateExtremesSum"
+    for n in $(seq 200 200 2500)
+    do  
+        # Skip values already included in first sweep
+        if (( n % 500 == 0 )); then
+            continue
+        fi
+        
+        for cm in "${CLUSTERING_METHODS[@]}"
+        do
+            echo "Submitting: dataset=$dataset ep=$ep cm=$cm n=$n"
+
+            sbatch run.sh \
+                --n_prime=$n \
+                --dataset=$dataset \
+                --extreme_preservation=$ep \
+                --clustering_method=$cm
+        done
+    done
+
+    # basecase:
+    sbatch run.sh \
+        --n_prime=8760 \
+        --dataset=$dataset
+
 done
+

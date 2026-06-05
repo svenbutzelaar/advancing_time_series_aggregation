@@ -84,10 +84,13 @@ def extract_4th_optimal_objective(log_path: Path) -> float | None:
     """
     pattern = re.compile(r"Optimal objective\s+([\d.e+\-]+)")
     matches = pattern.findall(log_path.read_text(errors="replace"))
-    if len(matches) < 4:
+    if len(matches) < 3:
         print(f"  [WARN] Only {len(matches)} 'Optimal objective' found in {log_path.name} (need 4)")
         return None
-    return float(matches[3])  # 4th match (0-indexed)
+    elif len(matches) == 3:
+        return float(matches[2])
+    else:
+        return float(matches[3])  # 4th match (0-indexed)
 
 
 def find_log_for_experiment(experiment_name: str, log_dir: Path) -> Path | None:
@@ -236,7 +239,9 @@ df_final.loc[df_final["file_name"].str.contains("global", case=False, na=False),
 df_final = df_final.drop_duplicates()
 
 df_final.loc[df_final["num_clusters"] == 8760, "method"] = "base_case"
-df_final.loc[df_final["num_clusters"] == 8760, "file_name"] = "base_case"
+df_final.loc[df_final["num_clusters"] == 8760, "file_name"] = (
+    df_final.loc[df_final["num_clusters"] == 8760, "file_name"] + "_base_case"
+)
 
 # ── Save ──────────────────────────────────────────────────────────────────────
 output_file.parent.mkdir(parents=True, exist_ok=True)

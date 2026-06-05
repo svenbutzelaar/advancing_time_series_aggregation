@@ -54,6 +54,16 @@ function dataset_db_file(dataset::Dataset)
     end
 end
 
+function dataset_db_full_resolution_file(dataset::Dataset)
+    return if dataset == BaseDataset
+        "db_files/obz-invest-full-resolution-base.db"
+    elseif dataset == LowVar
+        "db_files/obz-invest-full-resolution-low-var.db"
+    elseif dataset == HighVar
+        "db_files/obz-invest-full-resolution-high-var.db"
+    end
+end
+
 function experiment_name(config::ClusteringConfig)
     ep_str = if config.extreme_preservation == SeperateTops
         "SeperateTops_w$(config.tops_window)"

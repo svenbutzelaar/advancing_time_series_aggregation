@@ -310,7 +310,7 @@ DuckDB.query(
     SELECT
         t.name AS asset,
         t.year,
-        1 AS partition,
+        1::varchar(255) AS partition,
         rep_periods_data.rep_period,
         'uniform' AS specification,
     FROM t_asset_yearly AS t

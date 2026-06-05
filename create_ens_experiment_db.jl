@@ -4,7 +4,7 @@ using DataFrames
 function create_ens_db(config, energy_problem, connection)
     file_name = experiment_name(config)
     target_db = "db_files/ens_$(file_name).db"
-    source_db = "db_files/obz-invest-full-resolution.db"
+    source_db = dataset_db_full_resolution_file(config.dataset)
 
     rm(target_db; force = true)
     cp(source_db, target_db; force = true)

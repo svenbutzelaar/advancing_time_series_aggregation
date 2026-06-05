@@ -59,7 +59,7 @@ do
         --clustering_method=Global
 done
 
-for n in $(seq 100 100 4501)
+for n in $(seq 200 200 4501)
 do
     sbatch run.sh \
         --n_prime=$n \
