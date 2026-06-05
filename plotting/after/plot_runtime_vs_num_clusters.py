@@ -20,8 +20,8 @@ EXPERIMENT_LABELS = {
     "perprofile_SeperateExtremesSum":    "EAC",
     "perlocation_Afterwards":            "PEC",
     "perprofile_Afterwards":             "PEC",
-    "perlocation_DynamicProgramming_s168": "DP",
-    "perprofile_DynamicProgramming_s168":  "DP",
+    # "perlocation_DynamicProgramming_s168": "DP",
+    # "perprofile_DynamicProgramming_s168":  "DP",
     "base_case":                         "Base case",
 }
 

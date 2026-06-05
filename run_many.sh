@@ -51,12 +51,6 @@ do
         --clustering_method=UTR
 done
 
-for dataset in BaseDataset LowVar HighVar; do
-    sbatch run.sh \
-        --dataset="$dataset" \
-        --n_prime=8760 
-done
-
 for n in $(seq 500 500 6000)
 do
     sbatch run.sh \
