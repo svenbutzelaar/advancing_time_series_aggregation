@@ -20,8 +20,8 @@ EXPERIMENT_LABELS = {
     "perprofile_SeperateExtremesSum":    "EAC",
     "perlocation_Afterwards":            "PEC",
     "perprofile_Afterwards":             "PEC",
-    "perlocation_DynamicProgramming_hp": "DP",
-    "perprofile_DynamicProgramming_hp":  "DP",
+    "perlocation_DynamicProgramming_s168": "DP",
+    "perprofile_DynamicProgramming_s168":  "DP",
     "base_case":                         "Base case",
 }
 
@@ -132,6 +132,21 @@ for scope in SCOPES:
             continue
 
         fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Base case horizontal line
+        base_sub = df[
+            (df["num_clusters"] == 8760)
+            & (df["dataset"] == dataset)
+        ]
+        if not base_sub.empty:
+            base_runtime = base_sub["runtime"].mean()
+            ax.axhline(
+                base_runtime,
+                color="grey",
+                linestyle=":",
+                linewidth=1.5,
+                label="Base case",
+            )
 
         labels_present = [
             l for l in LEGEND_ORDER

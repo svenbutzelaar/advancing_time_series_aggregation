@@ -11,6 +11,8 @@ csv_path = Path("plotting/csv_data/regret.csv")
 output_dir = Path("plots/regret")
 output_dir.mkdir(parents=True, exist_ok=True)
 
+results_csv_path = Path("plots/regret/regret_results_summary.csv")
+
 ENS_COST_PER_UNIT = 68887
 
 # -----------------------------
@@ -26,8 +28,8 @@ EXPERIMENT_LABELS = {
     "perprofile_SeperateExtremesSum":    "EAC",
     "perlocation_Afterwards":            "PEC",
     "perprofile_Afterwards":             "PEC",
-    "perlocation_DynamicProgramming_hp": "DP",
-    "perprofile_DynamicProgramming_hp":  "DP",
+    "perlocation_DynamicProgramming_s168": "DP",
+    "perlocation_DynamicProgramming_s168":  "DP",
     "base_case":                         "Base case",
 }
 
@@ -40,7 +42,7 @@ SCOPES = ["perlocation", "perprofile"]
 SCOPE_LABELS = {"perlocation": "Per location", "perprofile": "Per profile"}
 
 # Methods to show faded/alpha on log panel
-METHODS_FADED = {"UTR"}
+METHODS_FADED = {}
 
 # -----------------------------
 # Parsing helpers
@@ -147,7 +149,7 @@ for scope in SCOPES:
 
         non_faded = sub[~sub["label"].isin(METHODS_FADED)]
         y_max = non_faded["relative_regret"].max() if not non_faded.empty else sub["relative_regret"].max()
-        y_max = max(y_max * 1.05, 1.0)
+        y_max = min(max(y_max * 1.05, 1.0), 50)
 
         for ax, use_log in [(ax_main, False), (ax_log, True)]:
             for lbl in labels_present:
@@ -191,3 +193,29 @@ for scope in SCOPES:
         plt.savefig(out_path, dpi=150)
         plt.close()
         print(f"Saved: {out_path}")
+
+# -----------------------------
+# Export results summary CSV
+# Columns: scope, dataset, method, num_clusters,
+#          relative_regret, investment_cost, operational_cost_without_ens,
+#          ens_cost, total_cost, runtime (if present)
+# -----------------------------
+export_cols = [
+    "scope", "dataset", "label", "num_clusters",
+    "relative_regret", "investment_cost",
+    "operational_cost_without_ens", "ens_cost", "total_cost",
+]
+
+# Include runtime column if it exists in the data
+if "runtime" in plot_df.columns:
+    export_cols.append("runtime")
+
+summary = (
+    plot_df[export_cols]
+    .rename(columns={"label": "method"})
+    .sort_values(["scope", "dataset", "method", "num_clusters"])
+    .reset_index(drop=True)
+)
+
+summary.to_csv(results_csv_path, index=False)
+print(f"Saved results summary: {results_csv_path}")
