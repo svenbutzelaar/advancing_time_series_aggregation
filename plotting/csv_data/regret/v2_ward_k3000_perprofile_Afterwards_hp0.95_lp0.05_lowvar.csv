@@ -1,3 +1,5 @@
 method,num_clusters,file_name,calc_ens,t_clustering,t_create_model,t_solve,investment_cost_assets,investment_cost_storage_energy_assets,annualized_cost_assets,salvage_value_assets,investment_cost_flows,operational_cost_flows,fuel_cost_flows,total_variable_cost_flows,annualized_cost_flows,salvage_value_flows,energy_not_served
 Afterwards,3000,ward_k3000_perprofile_Afterwards_hp0.95_lp0.05_lowvar,false,4.717200040817261,37.55875587463379,926.9969282150269,2.3962740530344997e7,0.0,2.3962740530344997e7,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
 Afterwards,3000,ens_ward_k3000_perprofile_Afterwards_hp0.95_lp0.05_lowvar,true,0.0,53.63609981536865,61.32506489753723,,0.0,,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,27746.892318452738
+Afterwards,3000,ward_k3000_perprofile_Afterwards_hp0.95_lp0.05_lowvar,false,5.6082398891448975,40.88294315338135,921.1465849876404,2.3962740530344997e7,0.0,2.3962740530344997e7,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
+Afterwards,3000,ens_ward_k3000_perprofile_Afterwards_hp0.95_lp0.05_lowvar,true,0.0,58.61175894737244,63.98982310295105,,0.0,,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
