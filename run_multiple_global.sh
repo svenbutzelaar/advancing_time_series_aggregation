@@ -48,8 +48,6 @@ EXTREME_PRESERVATIONS=(
 )
 
 CLUSTERING_METHODS=(
-    "PerLocation"
-    "PerProfile"
     "Global"
 )
 
@@ -75,61 +73,7 @@ do
         done
     done
 
-    # --------------------------------------------------------
-    # UTR reference experiments
-    # --------------------------------------------------------
-    for n in \
-        4380 2920 2190 1752 \
-        1460 1095 876 730
-    do
-        echo "Submitting UTR: dataset=$dataset n=$n"
 
-        sbatch run.sh \
-            --n_prime=$n \
-            --dataset=$dataset \
-            --extreme_preservation=NoExtremePreservation \
-            --clustering_method=UTR
-    done
-
-    ep="NoExtremePreservation"
-    for n in $(seq 5000 1000 8000)
-    do  
-        for cm in "${CLUSTERING_METHODS[@]}"
-        do
-            echo "Submitting: dataset=$dataset ep=$ep cm=$cm n=$n"
-
-            sbatch run.sh \
-                --n_prime=$n \
-                --dataset=$dataset \
-                --extreme_preservation=$ep \
-                --clustering_method=$cm
-        done
-    done
-
-    ep="SeperateExtremesSum"
-    for n in $(seq 200 200 2500)
-    do  
-        # Skip values already included in first sweep
-        if (( n % 500 == 0 )); then
-            continue
-        fi
-        
-        for cm in "${CLUSTERING_METHODS[@]}"
-        do
-            echo "Submitting: dataset=$dataset ep=$ep cm=$cm n=$n"
-
-            sbatch run.sh \
-                --n_prime=$n \
-                --dataset=$dataset \
-                --extreme_preservation=$ep \
-                --clustering_method=$cm
-        done
-    done
-
-    # basecase:
-    sbatch run.sh \
-        --n_prime=8760 \
-        --dataset=$dataset
 
 done
 

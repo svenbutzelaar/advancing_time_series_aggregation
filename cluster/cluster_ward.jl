@@ -195,7 +195,7 @@ struct HeapEntry
 end
 
 Base.isless(a::HeapEntry, b::HeapEntry) =
-    (a.conflict_in_extreme, a.ward_criterion) 
+    (a.conflict_in_extreme, a.ward_criterion) <
     (b.conflict_in_extreme, b.ward_criterion)
 
 # =========================
