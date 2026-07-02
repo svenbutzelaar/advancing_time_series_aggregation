@@ -26,6 +26,7 @@ mutable struct LinkedListNode
     prev_node::Union{Nothing, LinkedListNode}
     next_node::Union{Nothing, LinkedListNode}
     active::Bool
+    version::Int
 
     function LinkedListNode(
         start_index::Int,
@@ -51,7 +52,8 @@ mutable struct LinkedListNode
             getIsExtreme(all_values, row, modes, high_thresholds, low_thresholds, config),
             nothing,
             nothing,
-            true
+            true,
+            0,
         )
     end
 end
@@ -73,6 +75,7 @@ function merge_nodes!(
     c1.is_extreme .= c1.is_extreme .|| c2.is_extreme
 
     c1.centroid .= c1.sum_of_values ./ c1.count
+    c1.version += 1
 
     c1.next_node = c2.next_node
 
@@ -81,6 +84,7 @@ function merge_nodes!(
     end
 
     c2.active = false
+    c2.version += 1
     c2.prev_node = nothing
     c2.next_node = nothing
 end
@@ -186,10 +190,12 @@ struct HeapEntry
     ward_criterion::Float64
     c1::LinkedListNode
     c2::LinkedListNode
+    c1_version::Int
+    c2_version::Int
 end
 
 Base.isless(a::HeapEntry, b::HeapEntry) =
-    (a.conflict_in_extreme, a.ward_criterion) <
+    (a.conflict_in_extreme, a.ward_criterion) 
     (b.conflict_in_extreme, b.ward_criterion)
 
 # =========================
@@ -274,7 +280,7 @@ function hierarchical_time_clustering_ward(
         ward_crit = compute_ward_dissimilarity(c1, c2)
         conflict  = compute_conflict_value(c1, c2)
 
-        push!(heap, HeapEntry(conflict, ward_crit, c1, c2))
+        push!(heap, HeapEntry(conflict, ward_crit, c1, c2, c1.version, c2.version))
     end
 
     for i in 1:n-1
@@ -297,7 +303,9 @@ function hierarchical_time_clustering_ward(
 
         if !(entry.c1.active &&
              entry.c2.active &&
-             entry.c1.next_node === entry.c2)
+             entry.c1.next_node === entry.c2 &&
+             entry.c1.version == entry.c1_version &&
+             entry.c2.version == entry.c2_version)
             continue
         end
 
