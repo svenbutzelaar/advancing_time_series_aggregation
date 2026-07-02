@@ -81,16 +81,16 @@ NODE_POS = {
     "X_Coal":               (-3.5, -4.0),
     "X_Hydro":              (-3.5,  3.0),
     "X_Hydro_Reservoir":    (-3.5,  4.0),
-    "X_Pump_Hydro_Closed":  (-2.5,  3.5),
-    "X_Pump_Hydro_Open":    (-2.5,  4.5),
+    "X_Pump_Hydro_Closed":  (-2.5,  4.0),
+    "X_Pump_Hydro_Open":    (-1.5,  4.0),
     # X balance node (center)
     "X_E_Balance":          ( 0.0,  0.0),
     # X demands (right)
-    "X_E_Demand":           ( 1.0,  1.0),
-    "X_E_ENS":              ( 1.0,  2.0),
-    "X_Battery":            ( 1.0, -1.0),
-    "X_electrolyzer":       ( 1.0, -2.5),
-    "X_H_Demand":           ( 1.0, -3.5),
+    "X_E_Demand":           ( 1.2,  2.0),
+    "X_E_ENS":              ( 0.0,  2.0),
+    "X_Battery":            ( 1.2, 0.0),
+    "X_electrolyzer":       ( 1.2, -2.0),
+    "X_H_Demand":           ( 0.0, -2.0),
     # Y location (top right cluster)
     "Y_E_Balance":          ( 5.5,  3.0),
     # Z location (bottom right cluster)
@@ -197,7 +197,7 @@ def draw_panel(ax, col, asset_lookup, flow_rows):
         )
         ax.add_patch(ellipse)
         ax.text(cx, max(ys) + pad * 0.55, f"Location {loc}",
-                ha="center", va="bottom", fontsize=7,
+                ha="center", va="bottom", fontsize=13,
                 color=LOC_COLOR[loc], fontweight="bold")
 
     # Draw edges
@@ -243,7 +243,7 @@ def draw_panel(ax, col, asset_lookup, flow_rows):
             mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
             label = res if res == res2 else f"{res}\n{res2}"
             ax.text(mid_x + nx * 1.5, mid_y + ny * 1.5, label,
-                    ha="center", va="center", fontsize=5.5,
+                    ha="center", va="center", fontsize=6.5,
                     color=color, fontweight="bold",
                     bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.7))
         else:
@@ -252,7 +252,7 @@ def draw_panel(ax, col, asset_lookup, flow_rows):
                                         lw=1.2, mutation_scale=8))
             mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
             ax.text(mid_x, mid_y, res,
-                    ha="center", va="center", fontsize=5.5,
+                    ha="center", va="center", fontsize=6.5,
                     color=color, fontweight="bold",
                     bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.7))
 
@@ -271,13 +271,13 @@ def draw_panel(ax, col, asset_lookup, flow_rows):
 
         # Resolution label inside circle
         ax.text(x, y, res, ha="center", va="center",
-                fontsize=5, color="white", fontweight="bold", zorder=5)
+                fontsize=7, color="white", fontweight="bold", zorder=5)
 
         # Node name below
         label = SHORT.get(node, node.replace("_", "\n"))
         ax.text(x, y - 0.38, label, ha="center", va="top",
-                fontsize=5, color="#333333", zorder=5,
-                multialignment="center")
+                fontsize=7, color="#333333", zorder=5,
+                multialignment="center", fontweight="bold")
 
     # Axis limits
     all_x = [p[0] for p in NODE_POS.values()]
@@ -288,23 +288,24 @@ def draw_panel(ax, col, asset_lookup, flow_rows):
 
 # ── Legend ────────────────────────────────────────────────────────────────────
 
-def draw_legend(fig, palette):
+def draw_legend(fig, used_resolutions, palette):
     handles = []
-    # Uniform resolutions
-    for label, color in [("1 (uniform hourly)", "#AAAAAA"),
-                          ("24 (uniform daily)", "#AAAAAA")]:
-        handles.append(mpatches.Patch(color=color, label=label, alpha=0.5))
-    # Custom resolutions
-    for res, color in sorted(palette.items()):
-        handles.append(mpatches.Patch(color=color, label=f"Resolution {res}"))
+
+    if "1" in used_resolutions:
+        handles.append(mpatches.Patch(color="#AAAAAA", alpha=0.5, label="1 (uniform hourly)"))
+    if "24" in used_resolutions:
+        handles.append(mpatches.Patch(color="#AAAAAA", alpha=0.5, label="24 (uniform daily)"))
+
+    for res in sorted(r for r in used_resolutions if r not in ("1", "24")):
+        handles.append(mpatches.Patch(color=palette[res], label=f"Resolution {res}"))
 
     fig.legend(
         handles=handles,
         loc="lower center",
-        ncol=min(len(handles), 6),
+        ncol=min(len(handles), 3),  # <-- Changed from 6 to 3 (or 2)
         fontsize=10,
         title="Temporal resolution",
-        title_fontsize=8,
+        title_fontsize=11,
         frameon=True,
         bbox_to_anchor=(0.5, 0.01),
     )
@@ -356,7 +357,17 @@ for col, title, filename in titles:
     ax.set_title(f"Temporal resolution assignment per configuration\n{title}",
                 fontsize=10, fontweight="bold", y=0.98)
 
-    draw_legend(fig, palette)
+    used_resolutions = set()
+
+    # Asset resolutions
+    for row in assets:
+        used_resolutions.add(row[col])
+
+    # Flow resolutions
+    for row in flows:
+        used_resolutions.add(row[col])
+
+    draw_legend(fig, used_resolutions, palette)
 
     plt.tight_layout(rect=[0, 0.07, 1, 0.97])
 
