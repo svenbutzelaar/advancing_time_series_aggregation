@@ -1,0 +1,3 @@
+method,num_clusters,file_name,calc_ens,t_clustering,t_create_model,t_solve,investment_cost_assets,investment_cost_storage_energy_assets,annualized_cost_assets,salvage_value_assets,investment_cost_flows,operational_cost_flows,fuel_cost_flows,total_variable_cost_flows,annualized_cost_flows,salvage_value_flows,energy_not_served
+SeperateExtremesSum,400,ward_k400_perlocation_SeperateExtremesSum_hp0.95_lp0.05_lowvar,false,13.440661191940308,12.40907883644104,25.253194093704224,2.3962740530344997e7,0.0,2.3962740530344997e7,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
+SeperateExtremesSum,400,ens_ward_k400_perlocation_SeperateExtremesSum_hp0.95_lp0.05_lowvar,true,0.0,51.046480894088745,67.20355010032654,,0.0,,0.0,0.0,2.072431553662e6,0.0,2.072431553662e6,0.0,0.0,0.0
